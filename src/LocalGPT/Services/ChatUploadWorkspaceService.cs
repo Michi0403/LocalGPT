@@ -41,11 +41,13 @@ namespace LocalGPT.Services
         /// <param name="prompt">Prompt value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="files">Chat upload workspace input file dependency used by the chat upload workspace workflow to provide the corresponding application capability.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="conversationId">Owning Chat for native attachments, when available.</param>
         /// <returns>The chat upload workspace result produced by the operation.</returns>
         public async Task<ChatUploadWorkspaceResult> CreateWorkspaceAsync(
             string prompt,
             IEnumerable<ChatUploadWorkspaceInputFile> files,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Guid? conversationId = null)
         {
             try
             {
@@ -66,6 +68,7 @@ namespace LocalGPT.Services
 
                 var warnings = new List<string>();
                 var analyzedFiles = new List<AnalyzedUploadFile>();
+                var originalAttachments = new Dictionary<string, OriginalAttachment>(StringComparer.Ordinal);
                 var readOnlyArchiveExtractionReady = false;
                 long totalUploadedBytes = 0;
 
@@ -90,6 +93,8 @@ namespace LocalGPT.Services
                     var originalPath = Path.Combine(originalRoot, safeName);
                     var bytes = input.Data.ToArray();
                     await System.IO.File.WriteAllBytesAsync(originalPath, bytes, cancellationToken).ConfigureAwait(false);
+                    if (conversationId.HasValue)
+                        originalAttachments.Add(safeName, new(input.ContentType, bytes.Length, Convert.ToHexString(SHA256.HashData(bytes))));
 
                     var originalRelativePath = councilText.ToForwardSlash(Path.GetRelativePath(root, originalPath), logger);
                     if (packages.IsZipContainer(originalPath))
@@ -134,6 +139,8 @@ namespace LocalGPT.Services
                     JsonSerializer.Serialize(new
                     {
                         WorkspaceName = workspaceName,
+                        ConversationId = conversationId,
+                        OriginalAttachments = originalAttachments,
                         RootPath = root,
                         CreatedAtUtc = DateTimeOffset.UtcNow,
                         ReceivedUploadCount = fileList.Count,
@@ -189,6 +196,54 @@ namespace LocalGPT.Services
             }
 
         }
+
+        /// <inheritdoc />
+        public async Task<ChatUploadWorkspaceInputFile?> ReadOriginalAttachmentAsync(
+            Guid conversationId, string workspaceName, string fileName, int maximumBytes, CancellationToken cancellationToken = default)
+        {
+            if (conversationId == Guid.Empty || maximumBytes <= 0 || string.IsNullOrWhiteSpace(fileName) ||
+                fileName.IndexOfAny(['/', '\\', ':']) >= 0 || fileName is "." or ".." ||
+                ResolveWorkspacePath(workspaceName) is not { } root)
+                return null;
+
+            var manifestPath = Path.Combine(root, "manifest.json");
+            var originalRoot = Path.Combine(root, "original");
+            var path = Path.Combine(originalRoot, fileName);
+            try
+            {
+                if (new[] { WorkspaceRoot, root, manifestPath, originalRoot, path }
+                    .Any(item => (File.GetAttributes(item) & FileAttributes.ReparsePoint) != 0))
+                    return null;
+
+                await using var manifestStream = File.OpenRead(manifestPath);
+                using var manifest = await JsonDocument.ParseAsync(manifestStream, cancellationToken: cancellationToken).ConfigureAwait(false);
+                var document = manifest.RootElement;
+                if (!document.TryGetProperty("conversationId", out var owner) || owner.ValueKind != JsonValueKind.String ||
+                    !owner.TryGetGuid(out var ownerId) || ownerId != conversationId ||
+                    !document.TryGetProperty("originalAttachments", out var attachments) || attachments.ValueKind != JsonValueKind.Object ||
+                    !attachments.TryGetProperty(fileName, out var entry) ||
+                    entry.Deserialize<OriginalAttachment>(catalog.JsonOptions) is not { Length: > 0 } original ||
+                    original.Length > maximumBytes)
+                    return null;
+
+                await using var stream = File.OpenRead(path);
+                if (stream.Length != original.Length)
+                    return null;
+
+                var bytes = new byte[original.Length];
+                await stream.ReadExactlyAsync(bytes, cancellationToken).ConfigureAwait(false);
+                return string.Equals(Convert.ToHexString(SHA256.HashData(bytes)), original.Sha256, StringComparison.Ordinal)
+                    ? new(fileName, original.ContentType, bytes.Length, bytes)
+                    : null;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
+            {
+                logger.LogDebug("An original Chat upload is no longer readable.");
+                return null;
+            }
+        }
+
+        private sealed record OriginalAttachment(string ContentType, int Length, string Sha256);
 
         /// <summary>Creates a quarantine workspace by streaming selected files directly to disk before analysis.</summary>
         /// <param name="prompt">Optional user goal or upload context.</param>

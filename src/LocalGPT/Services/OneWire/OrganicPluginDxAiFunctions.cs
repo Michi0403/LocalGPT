@@ -1,6 +1,9 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using LocalGPT.WireProtocol;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace LocalGPT.Services.OneWire;
 
@@ -11,12 +14,16 @@ namespace LocalGPT.Services.OneWire;
 /// <param name="connections">One wire connection registry dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
 /// <param name="peers">One wire peer registry dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
 /// <param name="spooler">One wire work spooler dependency used by the invoke organic plugin function workflow to provide the corresponding application capability.</param>
+/// <param name="uploads">Provides original attachments scoped to the invoking Chat.</param>
+/// <param name="options">Determines the active wire frame budget.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class InvokeOrganicPluginFunction(
     IOrganicDxFunctionSupport organicSupport,
     IOneWireConnectionRegistry connections,
     IOneWirePeerRegistry peers,
     IOneWireWorkSpooler spooler,
+    IChatUploadWorkspaceService uploads,
+    IOptionsMonitor<OneWireOptions> options,
     ILogger<InvokeOrganicPluginFunction> logger) : IDxAiFunctionHandler, IDxAiFunctionPayloadSchema
 {
     /// <summary>
@@ -28,7 +35,7 @@ public sealed class InvokeOrganicPluginFunction(
         Method: "POST",
         Route: "/api/onewire/peers/{peerId}/invoke",
         Purpose: "Queues a capability on a user-connected organic plugin such as PublisherStudio. Use this for eyes, hands, OpenSCAD, spreadsheet or media functions advertised by that peer.",
-        Parameters: "peerId, capabilityKey, payload, executionMode, workOrderKey, notBeforeUtc, interactionValue",
+        Parameters: "peerId, capabilityKey, payload, attachment, executionMode, workOrderKey, notBeforeUtc, interactionValue",
         SafetyNotes: "The target peer applies its per-organ permission rules. LocalGPT also requires human approval before sending the exact side-effecting request.",
         IsReadOnly: false,
         AvailableToAi: true,
@@ -37,7 +44,7 @@ public sealed class InvokeOrganicPluginFunction(
         SupportsAutomaticInvocation: false,
         Source: "OneWire",
         ParameterSchemaJson: """
-        {"type":"object","required":["peerId","capabilityKey"],"properties":{"peerId":{"type":"string"},"capabilityKey":{"type":"string"},"payload":{"type":"object"},"executionMode":{"type":"string","enum":["Once","SequentialSpool","Scheduled","Recurring"]},"workOrderKey":{"type":"string"},"notBeforeUtc":{"type":"string","format":"date-time"},"interactionValue":{"description":"Optional bidirectional JSON information for the receiving system."}}}
+        {"type":"object","required":["peerId","capabilityKey"],"properties":{"peerId":{"type":"string"},"capabilityKey":{"type":"string"},"payload":{"type":"object"},"attachment":{"type":"object","description":"Reference to an original attachment in this Chat. For peer schemas with fileName, mimeType and base64-encoded contentBase64, omit those three payload fields and supply this attachment reference instead. Only supports Once execution.","required":["workspaceName","fileName"],"properties":{"workspaceName":{"type":"string","minLength":1},"fileName":{"type":"string","minLength":1}},"additionalProperties":false},"executionMode":{"type":"string","enum":["Once","SequentialSpool","Scheduled","Recurring"]},"workOrderKey":{"type":"string"},"notBeforeUtc":{"type":"string","format":"date-time"},"interactionValue":{"description":"Optional bidirectional JSON information for the receiving system."}}}
         """,
         IsCoordinationOnly: true,
         SupportsDeferredApprovalRequest: true,
@@ -59,12 +66,97 @@ public sealed class InvokeOrganicPluginFunction(
                 return null;
 
             parameters.TryGetProperty("payload", out var payload);
+            if (parameters.TryGetProperty("attachment", out _))
+            {
+                if ((organicSupport.GetString(parameters, "executionMode") is { Length: > 0 } mode &&
+                     !mode.Equals(nameof(OneWireExecutionMode.Once), StringComparison.OrdinalIgnoreCase)) ||
+                    parameters.TryGetProperty("notBeforeUtc", out _) ||
+                    !SupportsAttachment(capability.ParameterSchemaJson) ||
+                    TryBuildAttachmentPayload(payload, "", "", "") is not { } projected)
+                    return ("""{"type":"null"}""", parameters, "parameters.attachment");
+
+                // Validate the operation's non-file arguments before requesting approval.
+                // The authorized file bytes are resolved only during execution.
+                payload = projected;
+            }
             return (capability.ParameterSchemaJson, payload, "parameters.payload");
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Could not resolve the advertised organic capability schema.");
             throw;
+        }
+    }
+
+    /// <summary>Checks whether the peer advertises the supported inline file fields.</summary>
+    /// <param name="schema">Advertised payload schema.</param>
+    /// <returns>Whether a Chat attachment can supply the inline fields.</returns>
+    private bool SupportsAttachment(string schema)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(schema))
+                return false;
+
+            using var document = JsonDocument.Parse(schema);
+            return document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty("properties", out var properties) &&
+                IsPlainString(properties, "fileName") && IsPlainString(properties, "mimeType") &&
+                IsPlainString(properties, "contentBase64", "base64");
+        }
+        catch (JsonException exception)
+        {
+            logger.LogWarning(exception, "The peer advertised a malformed attachment payload schema.");
+            return false;
+        }
+    }
+
+    /// <summary>Checks for a string field that can safely use a placeholder during approval validation.</summary>
+    /// <param name="properties">The advertised properties object.</param>
+    /// <param name="name">The expected field name.</param>
+    /// <param name="encoding">An encoding required for the field, when specified.</param>
+    /// <returns>Whether the field matches the supported contract.</returns>
+    private bool IsPlainString(JsonElement properties, string name, string? encoding = null)
+    {
+        try
+        {
+            if (properties.ValueKind != JsonValueKind.Object || !properties.TryGetProperty(name, out var property) ||
+                property.ValueKind != JsonValueKind.Object || !property.TryGetProperty("type", out var type) ||
+                type.ValueKind != JsonValueKind.String || type.GetString() != "string")
+                return false;
+            return (encoding is null || property.TryGetProperty("contentEncoding", out var value) &&
+                value.ValueKind == JsonValueKind.String && value.GetString() == encoding) &&
+                property.EnumerateObject().All(field => field.Name is "type" or "description" or "contentEncoding");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not inspect an advertised attachment field.");
+            return false;
+        }
+    }
+
+    /// <summary>Supplies inline file fields while preserving the peer operation's other parameters.</summary>
+    /// <param name="payload">The requested parameters without file fields.</param>
+    /// <param name="fileName">Original file name or validation placeholder.</param>
+    /// <param name="mimeType">Original media type or validation placeholder.</param>
+    /// <param name="base64">Authorized file data or validation placeholder.</param>
+    /// <returns>The completed payload, or null if the file fields are already present.</returns>
+    private JsonElement? TryBuildAttachmentPayload(JsonElement payload, string fileName, string mimeType, string base64)
+    {
+        try
+        {
+            var fields = payload.ValueKind == JsonValueKind.Object ? JsonNode.Parse(payload.GetRawText())!.AsObject() : new JsonObject();
+            if (fields.ContainsKey("fileName") || fields.ContainsKey("mimeType") || fields.ContainsKey("contentBase64"))
+                return null;
+            fields.Add("fileName", fileName);
+            fields.Add("mimeType", mimeType);
+            fields.Add("contentBase64", base64);
+            return JsonSerializer.SerializeToElement(fields);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning("Could not construct the attachment payload ({ErrorType}).", exception.GetType().Name);
+            return null;
         }
     }
 
@@ -97,6 +189,27 @@ public sealed class InvokeOrganicPluginFunction(
             var executionMode = Enum.TryParse<OneWireExecutionMode>(organicSupport.GetString(request.Parameters, "executionMode"), true, out var parsedMode)
                 ? parsedMode
                 : OneWireExecutionMode.Once;
+            var interactionValue = request.Parameters.TryGetProperty("interactionValue", out var interaction) ? interaction.GetRawText() : payload.GetRawText();
+            if (request.Parameters.TryGetProperty("attachment", out var attachment))
+            {
+                if (!request.UserConfirmed || request.ConversationId is not Guid conversationId ||
+                    executionMode != OneWireExecutionMode.Once || request.Parameters.TryGetProperty("notBeforeUtc", out _) ||
+                    !SupportsAttachment(capability.ParameterSchemaJson))
+                    return organicSupport.Invalid("A Chat attachment requires a confirmed one-time invocation of a peer capability that accepts a file.");
+
+                var wireLimit = Math.Min(options.CurrentValue.MaximumMessageBytes, OneWireProtocol.MaximumMessageBytes);
+                // Reserve room for both encoding layers, the payload options and the signed envelope.
+                var maximumBytes = (wireLimit - 4096 - payload.GetRawText().Length * 4L) / 4;
+                var source = await uploads.ReadOriginalAttachmentAsync(conversationId,
+                    organicSupport.GetString(attachment, "workspaceName"), organicSupport.GetString(attachment, "fileName"),
+                    (int)Math.Max(0, maximumBytes), cancellationToken).ConfigureAwait(false);
+                if (source is null)
+                    return organicSupport.Invalid("The original attachment is unavailable in this Chat or exceeds the 1-Wire transfer budget.");
+
+                if (TryBuildAttachmentPayload(payload, source.Name, source.ContentType, Convert.ToBase64String(source.Data.Span)) is not { } resolved)
+                    return organicSupport.Invalid("Omit fileName, mimeType and contentBase64 from payload when an attachment is supplied.");
+                payload = resolved;
+            }
             var envelope = organicSupport.CreateInvokeEnvelope(
                 peerId,
                 capability,
@@ -105,7 +218,7 @@ public sealed class InvokeOrganicPluginFunction(
                 organicSupport.GetString(request.Parameters, "workOrderKey"),
                 DateTimeOffset.TryParse(organicSupport.GetString(request.Parameters, "notBeforeUtc"), out var notBefore) ? notBefore : null,
                 request.UserConfirmed,
-                request.Parameters.TryGetProperty("interactionValue", out var interaction) ? interaction.GetRawText() : payload.GetRawText());
+                interactionValue);
             return await QueueAndSendAsync(envelope, request.ConversationId, cancellationToken).ConfigureAwait(false);
     
     }

@@ -86,6 +86,7 @@ public class CompositeChatClient : IChatClient
     /// Stores circuit-scoped ASCII presentation state so provider prompts can discover whether the shared terminal is open without coupling this client to the browser component.
     /// </summary>
     private readonly IChatAsciiExperienceState _asciiExperience;
+    private readonly IChatSessionContext _sessionContext;
 
     /// <summary>
     /// Initializes a new <see cref="CompositeChatClient"/> instance and captures the dependencies or initial state required by its composite chat workflow.
@@ -102,6 +103,7 @@ public class CompositeChatClient : IChatClient
     /// <param name="councilText">Council text service dependency used by the composite chat workflow to provide the corresponding application capability.</param>
     /// <param name="asciiExperience">Circuit-scoped ASCII presentation state used to tell providers whether the shared terminal is open and whether optional ASCII fun is enabled.</param>
     /// <param name="chatClients">Chat clients value supplied to the composite chat operation and used when producing its result.</param>
+    /// <param name="sessionContext">Supplies the owning Chat when saving a native attachment.</param>
     public CompositeChatClient(
         ILogger logger,
         IAiFeatureReportService? featureReportService,
@@ -114,6 +116,7 @@ public class CompositeChatClient : IChatClient
         CouncilRuntimeService councilRuntime,
         CouncilTextService councilText,
         IChatAsciiExperienceState asciiExperience,
+        IChatSessionContext sessionContext,
         params ChatClientSession[] chatClients)
     {
 
@@ -130,6 +133,7 @@ public class CompositeChatClient : IChatClient
         _councilRuntime = councilRuntime ?? throw new ArgumentNullException(nameof(councilRuntime));
         _councilText = councilText ?? throw new ArgumentNullException(nameof(councilText));
         _asciiExperience = asciiExperience ?? throw new ArgumentNullException(nameof(asciiExperience));
+        _sessionContext = sessionContext;
     }
 
     /// <summary>
@@ -677,7 +681,9 @@ public class CompositeChatClient : IChatClient
         {
             // Materialize on the caller's thread: the source enumerable may belong to the DevExpress chat control.
             var messageSnapshot = messages.ToList();
-            return Task.Run(() => AddBootstrapContextAsync(messageSnapshot, cancellationToken), cancellationToken);
+            var conversationId = _sessionContext.ConversationId;
+            var outgoingUploads = _sessionContext.TakeOutgoingUploads(conversationId);
+            return Task.Run(() => AddBootstrapContextAsync(messageSnapshot, conversationId, outgoingUploads, cancellationToken), cancellationToken);
         }
         catch (Exception ex)
         {
@@ -692,12 +698,14 @@ public class CompositeChatClient : IChatClient
     /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The collection produced by the operation.</returns>
-    private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, CancellationToken cancellationToken)
+    /// <param name="conversationId">Owning Chat captured before leaving the renderer dispatcher.</param>
+    /// <param name="outgoingUploads">Native attachment metadata captured from the composer.</param>
+    private async Task<IReadOnlyList<ChatMessage>> AddBootstrapContextAsync(IEnumerable<ChatMessage> messages, Guid? conversationId, IReadOnlyList<ChatUploadWorkspaceInputFile> outgoingUploads, CancellationToken cancellationToken)
     {
         try
         {
             var messageList = messages.ToList();
-            var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, cancellationToken).ConfigureAwait(false);
+            var uploadWorkspacePrompt = await SaveUploadedMessageContentAsync(messageList, conversationId, outgoingUploads, cancellationToken).ConfigureAwait(false);
             var runtimeDecisionPolicy = _promptConfigService is null
                 ? string.Empty
                 : await _promptConfigService
@@ -756,8 +764,12 @@ public class CompositeChatClient : IChatClient
     /// <param name="messages">Chat message dependency used by the composite chat workflow to provide the corresponding application capability.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The string produced by the operation.</returns>
+    /// <param name="conversationId">Owning Chat for the native attachment.</param>
+    /// <param name="outgoingUploads">Native attachment metadata captured from the composer.</param>
     private async Task<string> SaveUploadedMessageContentAsync(
         IReadOnlyList<ChatMessage> messages,
+        Guid? conversationId,
+        IReadOnlyList<ChatUploadWorkspaceInputFile> outgoingUploads,
         CancellationToken cancellationToken)
     {
         try
@@ -775,12 +787,35 @@ public class CompositeChatClient : IChatClient
             if (fileList.Count == 0)
                 return string.Empty;
 
+            // DxAIChat can drop the filename when translating its upload to DataContent.
+            // Match the bytes before applying metadata captured for this submission.
+            if (outgoingUploads.Count > 0)
+            {
+                var unmatchedUploads = outgoingUploads.ToList();
+                for (var index = 0; index < fileList.Count; index++)
+                {
+                    var file = fileList[index];
+                    var originalIndex = unmatchedUploads.FindIndex(upload => upload.Data.Span.SequenceEqual(file.Data.Span));
+                    if (originalIndex < 0)
+                        continue;
+
+                    var original = unmatchedUploads[originalIndex];
+                    fileList[index] = file with
+                    {
+                        Name = original.Name,
+                        ContentType = string.IsNullOrWhiteSpace(original.ContentType) ? file.ContentType : original.ContentType
+                    };
+                    unmatchedUploads.RemoveAt(originalIndex);
+                }
+            }
+
             try
             {
                 var result = await _chatUploadWorkspaces.CreateWorkspaceAsync(
                     latestUserMessage.Text ?? string.Empty,
-                    files,
-                    cancellationToken).ConfigureAwait(false);
+                    fileList,
+                    cancellationToken,
+                    conversationId).ConfigureAwait(false);
                 _logger.LogInformation(
                     "Created DXAiChat native attachment workspace {WorkspaceName} with {FileCount} files.",
                     result.WorkspaceName,

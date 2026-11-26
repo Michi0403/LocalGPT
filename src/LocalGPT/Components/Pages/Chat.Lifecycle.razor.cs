@@ -207,6 +207,10 @@ namespace LocalGPT.Components.Pages
         // A function can defer work before the first message is saved to memory.
         ActiveConversationId ??= Guid.NewGuid();
         SessionContext.SetConversation(ActiveConversationId);
+        SessionContext.CaptureOutgoingUploads(ActiveConversationId.Value, args.Files?
+            .Where(file => !file.Data.IsEmpty)
+            .Select(file => new ChatUploadWorkspaceInputFile(file.Name, file.Type, file.Data.Length, file.Data))
+            .ToArray() ?? []);
     }
 
     /// <summary>

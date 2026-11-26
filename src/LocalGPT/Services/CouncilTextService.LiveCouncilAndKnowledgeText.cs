@@ -104,7 +104,12 @@ namespace LocalGPT.Services
                     .Replace("{{ContextCharacters}}", result.CharacterCount.ToString("n0", CultureInfo.InvariantCulture), StringComparison.Ordinal)
                     .Replace("{{OriginalUploadInventory}}", inventory, StringComparison.Ordinal)
                     .Replace("{{UploadWarnings}}", warnings, StringComparison.Ordinal)
-                    .Trim();
+                    .Trim() + Environment.NewLine + "Original attachment references: " +
+                    System.Text.Json.JsonSerializer.Serialize(originalUploads.Select(file => new
+                    {
+                        workspaceName = result.WorkspaceName,
+                        fileName = file.RelativePath["original/".Length..]
+                    }));
             }
             catch (Exception ex)
             {

@@ -740,6 +740,7 @@ namespace LocalGPT.Components.Pages
             if (uploadedFiles.Count > 0)
             {
                 liveCouncilUploadStatus = $"Receiving and indexing {uploadedFiles.Count:n0} attachment(s). The Council remains running; extracted source will be available for on-demand reading.";
+                var conversationId = ActiveConversationId;
                 await InvokeAsync(StateHasChanged).ConfigureAwait(false);
                 var workspaceInputs = uploadedFiles.Select(file => new ChatUploadWorkspaceInputFile(
                     file.Name.Trim(),
@@ -749,7 +750,8 @@ namespace LocalGPT.Components.Pages
                 uploadWorkspace = await ChatUploadWorkspaces.CreateWorkspaceAsync(
                     normalizedContent,
                     workspaceInputs,
-                    componentLifetimeToken).ConfigureAwait(false);
+                    componentLifetimeToken,
+                    conversationId).ConfigureAwait(false);
                 deliveredContent = $"{normalizedContent}\n\n{CouncilText.BuildUploadWorkspaceSystemPrompt(uploadWorkspace, Logger)}";
             }
 

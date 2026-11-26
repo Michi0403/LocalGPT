@@ -12,6 +12,20 @@ public sealed class ChatSessionContext(
     ICustomVersion version,
     ILogger<ChatSessionContext> logger) : IChatSessionContext
 {
+    private OutgoingUploads? outgoingUploads;
+
+    private sealed record OutgoingUploads(Guid ConversationId, IReadOnlyList<ChatUploadWorkspaceInputFile> Files);
+
+    /// <inheritdoc/>
+    public void CaptureOutgoingUploads(Guid conversationId, IReadOnlyList<ChatUploadWorkspaceInputFile> files)
+        => Interlocked.Exchange(ref outgoingUploads, files.Count == 0 ? null : new(conversationId, files));
+
+    /// <inheritdoc/>
+    public IReadOnlyList<ChatUploadWorkspaceInputFile> TakeOutgoingUploads(Guid? conversationId)
+    {
+        var captured = Interlocked.Exchange(ref outgoingUploads, null);
+        return captured is not null && captured.ConversationId == conversationId ? captured.Files : [];
+    }
     /// <summary>
     /// Gets or sets the stable conversation identifier used to identify or correlate this chat session context instance with related application state.
     /// </summary>
@@ -63,6 +77,8 @@ public sealed class ChatSessionContext(
     {
     try
     {
+            if (ConversationId != conversationId)
+                Interlocked.Exchange(ref outgoingUploads, null);
             ConversationId = conversationId;
             logger.LogTrace("Updated the active LocalGPT conversation context; identifier content was omitted.");
     
@@ -112,7 +128,7 @@ public sealed class ChatSessionContext(
     try
     {
             ArgumentNullException.ThrowIfNull(snapshot);
-            ConversationId = snapshot.ConversationId;
+            SetConversation(snapshot.ConversationId);
             ProjectId = snapshot.ProjectId;
             ProjectVersionId = snapshot.ProjectId is null ? null : snapshot.ProjectVersionId;
             logger.LogTrace("Restored a LocalGPT chat session context snapshot.");

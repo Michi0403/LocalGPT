@@ -225,6 +225,7 @@ namespace LocalGPT.Services
                     councilRuntime,
                     councilText,
                     asciiExperience,
+                    sessionContext,
                     sessions.ToArray());
             }
             catch (Exception ex)

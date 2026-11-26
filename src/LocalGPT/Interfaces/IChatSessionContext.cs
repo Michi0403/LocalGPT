@@ -38,6 +38,12 @@ public interface IChatSessionContext
     /// </summary>
     /// <param name="conversationId">Identifier of the conversation to use for this operation.</param>
     void SetConversation(Guid? conversationId);
+
+    /// <summary>Captures the original files for the next native Chat submission.</summary>
+    void CaptureOutgoingUploads(Guid conversationId, IReadOnlyList<ChatUploadWorkspaceInputFile> files);
+
+    /// <summary>Consumes the captured files for the matching conversation.</summary>
+    IReadOnlyList<ChatUploadWorkspaceInputFile> TakeOutgoingUploads(Guid? conversationId);
     /// <summary>
     /// Sets project for <see cref="IChatSessionContext"/>, keeping the operation consistent with the state and invariants of the surrounding chat session context workflow.
     /// </summary>

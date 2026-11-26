@@ -19,11 +19,23 @@ namespace LocalGPT.Interfaces
         /// <param name="prompt">Prompt value supplied to the chat upload workspace operation and used when producing its result.</param>
         /// <param name="files">Chat upload workspace input file dependency used by the chat upload workspace workflow to provide the corresponding application capability.</param>
         /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+        /// <param name="conversationId">Owning Chat for native attachments, when available.</param>
         /// <returns>The chat upload workspace result produced by the operation.</returns>
         Task<ChatUploadWorkspaceResult> CreateWorkspaceAsync(
             string prompt,
             IEnumerable<ChatUploadWorkspaceInputFile> files,
-            CancellationToken cancellationToken = default);
+            CancellationToken cancellationToken = default,
+            Guid? conversationId = null);
+
+        /// <summary>Reads one unchanged original attachment owned by the specified Chat, under a caller-supplied transfer budget.</summary>
+        /// <param name="conversationId">Owning Chat identifier.</param>
+        /// <param name="workspaceName">Upload workspace identifier.</param>
+        /// <param name="fileName">Original file's stored basename.</param>
+        /// <param name="maximumBytes">Maximum number of bytes to read.</param>
+        /// <param name="cancellationToken">Cancels the attachment read.</param>
+        /// <returns>The verified attachment, or null when it is unavailable within the transfer budget.</returns>
+        Task<ChatUploadWorkspaceInputFile?> ReadOriginalAttachmentAsync(
+            Guid conversationId, string workspaceName, string fileName, int maximumBytes, CancellationToken cancellationToken = default);
 
         /// <summary>Creates a quarantine workspace by streaming selected files directly to disk before analysis.</summary>
         /// <param name="prompt">Optional user goal or upload context.</param>

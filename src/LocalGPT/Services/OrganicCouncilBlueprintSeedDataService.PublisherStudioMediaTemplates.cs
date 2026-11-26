@@ -25,7 +25,8 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 "localai.python.configure", "localai.python.environment.create", "localai.python.package.install",
                 "localai.sources.known", "localai.huggingface.search", "localai.model.install",
                 "initial.setup.canirun.recommendations",
-                "publisher.media.capabilities", "publisher.file.formats", "publisher.browser.view.inspect",
+                "publisher.media.capabilities", "publisher.file.formats", "publisher.export.formats", "publisher.browser.view.inspect",
+                "organic.plugin.invoke", "organic.plugin.work.read",
                 "publisher.panel.modules.inspect", "publisher.panel.module.invoke"
             };
             if (string.Equals(category, "image", StringComparison.Ordinal))

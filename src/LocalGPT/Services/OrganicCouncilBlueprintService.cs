@@ -121,6 +121,8 @@ public sealed class OrganicCouncilBlueprintService(
             {
                 builder.AppendLine("Connected organic 1-Wire capability teaching:")
                     .AppendLine("Use organic.plugin.invoke with the advertised peerId, capabilityKey and payload schema. If approval is pending, report it and wait for the human decision. Once the invocation returns a workItemId, use that value with organic.plugin.work.read and share the returned download URL in Chat when available. Capability visibility does not authorize execution.");
+                if (request.AttachedWorkspaceNames.Count > 0)
+                    builder.AppendLine("For an original Chat attachment, use its workspaceName and fileName in organic.plugin.invoke's top-level attachment field if the advertised payload accepts fileName, mimeType and base64-encoded contentBase64. Leave those three payload fields out. Follow the peer's returned nextCapability and job identifier until it returns the file. Only request an editor session or element identifier if the advertised operation requires one.");
                 // Capabilities a peer adds later reach a team through the skills its preferred capabilities advertise,
                 // so new media and export functions need no seed change to be taught.
                 var preferredSkills = connectedCapabilities
