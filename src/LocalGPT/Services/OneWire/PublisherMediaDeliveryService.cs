@@ -7,7 +7,8 @@ using Microsoft.Extensions.Options;
 namespace LocalGPT.Services.OneWire;
 
 /// <summary>Relays verified generation results to the peer that requested the Council session.</summary>
-public sealed class PublisherMediaDeliveryService(ILocalAiArtifactService artifacts, IOptionsMonitor<OneWireOptions> options, ILogger<PublisherMediaDeliveryService> logger)
+public sealed class PublisherMediaDeliveryService(ILocalAiArtifactService artifacts, IOptionsMonitor<OneWireOptions> options,
+    IServiceScopeFactory scopeFactory, ILocalGptVocabularyService vocabulary, ILogger<PublisherMediaDeliveryService> logger)
 {
     internal const string CapabilityKey = "localgpt.media.delivery.read";
     private readonly object gate = new();
@@ -65,18 +66,22 @@ public sealed class PublisherMediaDeliveryService(ILocalAiArtifactService artifa
         }
     }
 
+    internal void CompleteCouncil(Guid correlationId)
+    {
+        lock (gate)
+        {
+            if (requests.TryGetValue(correlationId, out var delivery))
+                delivery.CouncilFinished = true;
+        }
+    }
+
     internal void Record(Guid? runId, DxAiFunctionInvocationResult result)
     {
         if (runId is not Guid id || !result.Succeeded ||
             result.Value is not LocalAiRuntimeJobResult { Succeeded: true } job)
             return;
 
-        var contentType = result.FunctionName switch
-        {
-            "localai.image.generate" or "localai.image.edit.workspace" => "image/png",
-            "localai.video.generate" or "localai.video.from-image.workspace" => "video/mp4",
-            _ => null
-        };
+        var contentType = GetGenerationContentType(result.FunctionName);
         if (contentType is null) return;
 
         try
@@ -99,15 +104,44 @@ public sealed class PublisherMediaDeliveryService(ILocalAiArtifactService artifa
     internal async Task<PublisherMediaReadResult> ReadAsync(string peerId, PublisherMediaReadRequest request, CancellationToken cancellationToken)
     {
         LocalAiArtifactDescriptor? artifact;
+        string contentType;
+        Guid[] completedRunIds;
         lock (gate)
         {
             if (!requests.TryGetValue(request.CouncilCorrelationId, out var delivery) ||
                 delivery.ExpiresUtc <= DateTimeOffset.UtcNow || !string.Equals(delivery.PeerId, peerId, StringComparison.OrdinalIgnoreCase))
                 return new("Unavailable");
             artifact = delivery.Artifact;
+            contentType = delivery.ContentType;
+            if (artifact is null && !delivery.CouncilFinished)
+                return new("Waiting");
+            completedRunIds = artifact is null
+                ? runs.Where(pair => pair.Value == request.CouncilCorrelationId).Select(pair => pair.Key).ToArray()
+                : [];
         }
 
-        if (artifact is null) return new("Waiting");
+        if (artifact is null)
+        {
+            var scope = scopeFactory.CreateAsyncScope();
+            await using var configuredScope = scope.ConfigureAwait(false);
+            var deferred = scope.ServiceProvider.GetRequiredService<IDeferredDxAiInvocationService>();
+            var statuses = vocabulary.Get();
+            foreach (var runId in completedRunIds)
+            {
+                var invocations = await deferred.GetForRunAsync(runId, cancellationToken).ConfigureAwait(false);
+                if (invocations.Any(item => GetGenerationContentType(item.FunctionName) == contentType &&
+                    (item.Status == statuses.DeferredPendingApproval || item.Status == statuses.DeferredExecuting)))
+                    return new("Waiting");
+            }
+            lock (gate)
+            {
+                if (!requests.TryGetValue(request.CouncilCorrelationId, out var delivery) ||
+                    delivery.ExpiresUtc <= DateTimeOffset.UtcNow || !string.Equals(delivery.PeerId, peerId, StringComparison.OrdinalIgnoreCase))
+                    return new("Unavailable");
+                artifact = delivery.Artifact;
+            }
+            if (artifact is null) return new("CompletedWithoutFile");
+        }
         if (request.Offset < 0 || request.Offset >= artifact.Length ||
             (request.Offset != 0 || !string.IsNullOrEmpty(request.ArtifactId)) && request.ArtifactId != artifact.ArtifactId)
             return new("Unavailable");
@@ -136,4 +170,11 @@ public sealed class PublisherMediaDeliveryService(ILocalAiArtifactService artifa
 
         return new("Ready", artifact.ArtifactId, artifact.FileName, artifact.ContentType, artifact.Length, request.Offset, data);
     }
+
+    private string? GetGenerationContentType(string functionName) => functionName switch
+    {
+        "localai.image.generate" or "localai.image.edit.workspace" => "image/png",
+        "localai.video.generate" or "localai.video.from-image.workspace" => "video/mp4",
+        _ => null
+    };
 }

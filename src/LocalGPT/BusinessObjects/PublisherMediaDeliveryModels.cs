@@ -11,4 +11,5 @@ internal sealed record PublisherMediaReadResult(string Status, string ArtifactId
 internal sealed record PublisherMediaDeliveryRegistration(string PeerId, string ContentType, DateTimeOffset ExpiresUtc)
 {
     internal LocalAiArtifactDescriptor? Artifact { get; set; }
+    internal bool CouncilFinished { get; set; }
 }

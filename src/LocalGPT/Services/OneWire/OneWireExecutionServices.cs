@@ -36,8 +36,8 @@ public sealed class OneWireOperationExecutor(
             {
                 var wireRequest = ReadPayload<OneWireCouncilRequest>(item.Request, "CouncilRequest");
                 var goalService = scope.ServiceProvider.GetRequiredService<IGoalExecutionService>();
-                scope.ServiceProvider.GetRequiredService<PublisherMediaDeliveryService>()
-                    .Register(item.CorrelationId, item.SourcePeerId, wireRequest.ExternalProjectContextJson);
+                var mediaDelivery = scope.ServiceProvider.GetRequiredService<PublisherMediaDeliveryService>();
+                mediaDelivery.Register(item.CorrelationId, item.SourcePeerId, wireRequest.ExternalProjectContextJson);
                 var request = new MultiModelCouncilRequest
                 {
                     Prompt = wireRequest.Prompt,
@@ -135,6 +135,7 @@ public sealed class OneWireOperationExecutor(
                 }
                 finally
                 {
+                    mediaDelivery.CompleteCouncil(item.CorrelationId);
                     liveSessions.Complete(request.RunId);
                 }
             }
