@@ -1,0 +1,604 @@
+{
+  "name": "Default Council teams primary role baseline",
+  "heldOut": false,
+  "cases": [
+    {
+      "name": "adaptive-model-benchmark 1",
+      "teamKey": "adaptive-model-benchmark",
+      "role": "Coverage Auditor",
+      "prompt": "I am Codex testing new features and the app. Profiles A, B, C were planned; only A and C were measured. Give the missing ID. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "B"
+      }
+    },
+    {
+      "name": "adaptive-model-benchmark 2",
+      "teamKey": "adaptive-model-benchmark",
+      "role": "Coverage Auditor",
+      "prompt": "I am Codex testing new features and the app. Four of five deterministic cases passed. Give the integer pass percentage. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 80
+      }
+    },
+    {
+      "name": "ascii-doom-council-adventure 1",
+      "teamKey": "ascii-doom-council-adventure",
+      "role": "Map Architect",
+      "prompt": "I am Codex testing new features and the app. A row is #.##. Give the zero-based index of floor (.). Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 1
+      }
+    },
+    {
+      "name": "ascii-doom-council-adventure 2",
+      "teamKey": "ascii-doom-council-adventure",
+      "role": "Map Architect",
+      "prompt": "I am Codex testing new features and the app. ASCII map row widths are 4, 4, 3. Is the map rectangular? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "ascii-hot-seat-showcase 1",
+      "teamKey": "ascii-hot-seat-showcase",
+      "role": "Arena Referee",
+      "prompt": "I am Codex testing new features and the app. Turns alternate players 1 and 2. Player 2 just ended a legal turn. Give next player number. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 1
+      }
+    },
+    {
+      "name": "ascii-hot-seat-showcase 2",
+      "teamKey": "ascii-hot-seat-showcase",
+      "role": "Arena Referee",
+      "prompt": "I am Codex testing new features and the app. Rejected moves preserve the turn. Player 2's move was rejected. Give current player number. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 2
+      }
+    },
+    {
+      "name": "configuration-steward 1",
+      "teamKey": "configuration-steward",
+      "role": "Configuration investigator",
+      "prompt": "I am Codex testing new features and the app. A test app gives an explicit database value precedence over JSON. JSON says off, database says on. Give the effective string. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "on"
+      }
+    },
+    {
+      "name": "configuration-steward 2",
+      "teamKey": "configuration-steward",
+      "role": "Configuration investigator",
+      "prompt": "I am Codex testing new features and the app. JSON fallback is 42 and there is no database override. Give effective integer. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 42
+      }
+    },
+    {
+      "name": "csharp-modern-host-development 1",
+      "teamKey": "csharp-modern-host-development",
+      "role": "C# implementation developer",
+      "prompt": "I am Codex testing new features and the app. Give the lowercase .NET DI lifetime for one instance per web request. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "scoped"
+      }
+    },
+    {
+      "name": "csharp-modern-host-development 2",
+      "teamKey": "csharp-modern-host-development",
+      "role": "C# implementation developer",
+      "prompt": "I am Codex testing new features and the app. Name the C# return type, with no namespace or spaces, for an async method that returns an int. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "Task<int>"
+      }
+    },
+    {
+      "name": "dynamic-web-research 1",
+      "teamKey": "dynamic-web-research",
+      "role": "Evidence analyst",
+      "prompt": "I am Codex testing new features and the app. Source A is a project's release note. Source B only quotes A. Give the primary source ID. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "A"
+      }
+    },
+    {
+      "name": "dynamic-web-research 2",
+      "teamKey": "dynamic-web-research",
+      "role": "Evidence analyst",
+      "prompt": "I am Codex testing new features and the app. Two claims disagree and neither offers evidence. Can either claim be called verified? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "embedded-firmware-wiring 1",
+      "teamKey": "embedded-firmware-wiring",
+      "role": "Board and GPIO analyst",
+      "prompt": "I am Codex testing new features and the app. Pin A is analog input and B is digital output only. Give the pin ID for measuring analog voltage. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "A"
+      }
+    },
+    {
+      "name": "embedded-firmware-wiring 2",
+      "teamKey": "embedded-firmware-wiring",
+      "role": "Board and GPIO analyst",
+      "prompt": "I am Codex testing new features and the app. Give the largest code of an unsigned 10-bit ADC. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 1023
+      }
+    },
+    {
+      "name": "game-director-runtime 1",
+      "teamKey": "game-director-runtime",
+      "role": "Runtime Verifier",
+      "prompt": "I am Codex testing new features and the app. A scene transition from S1 to S2 failed validation. Rules preserve the scene on failure. Give current scene ID. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "S1"
+      }
+    },
+    {
+      "name": "game-director-runtime 2",
+      "teamKey": "game-director-runtime",
+      "role": "Runtime Verifier",
+      "prompt": "I am Codex testing new features and the app. A paused game advances zero ticks. Ten ticks were requested while paused. Give ticks advanced. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 0
+      }
+    },
+    {
+      "name": "game-engine-extension-development 1",
+      "teamKey": "game-engine-extension-development",
+      "role": "Engine Boundary Architect",
+      "prompt": "I am Codex testing new features and the app. Renderer is optional UI and Rules is required gameplay. Give module ID required in headless mode. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "Rules"
+      }
+    },
+    {
+      "name": "game-engine-extension-development 2",
+      "teamKey": "game-engine-extension-development",
+      "role": "Engine Boundary Architect",
+      "prompt": "I am Codex testing new features and the app. A replay uses the same seed and inputs in a deterministic simulation. Should final states match? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": true
+      }
+    },
+    {
+      "name": "game-project-development 1",
+      "teamKey": "game-project-development",
+      "role": "Gameplay Systems Designer",
+      "prompt": "I am Codex testing new features and the app. Healing adds 5 to health up to 10, starting from 8. Give final health. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 10
+      }
+    },
+    {
+      "name": "game-project-development 2",
+      "teamKey": "game-project-development",
+      "role": "Gameplay Systems Designer",
+      "prompt": "I am Codex testing new features and the app. An action is ready after at least 3 ticks. Two elapsed. Is it ready? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "game-project-discovery 1",
+      "teamKey": "game-project-discovery",
+      "role": "Acceptance Curator",
+      "prompt": "I am Codex testing new features and the app. Criterion A says movement feels great, B says one move advances one tile. Give directly measurable criterion ID. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "B"
+      }
+    },
+    {
+      "name": "game-project-discovery 2",
+      "teamKey": "game-project-discovery",
+      "role": "Acceptance Curator",
+      "prompt": "I am Codex testing new features and the app. A suggested optional feature was never accepted as a requirement. Is it release acceptance criteria? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "game-project-playtest 1",
+      "teamKey": "game-project-playtest",
+      "role": "Rules and Balance Tester",
+      "prompt": "I am Codex testing new features and the app. Two pickups add 3 points each to a starting score of 1. Give final score. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 7
+      }
+    },
+    {
+      "name": "game-project-playtest 2",
+      "teamKey": "game-project-playtest",
+      "role": "Rules and Balance Tester",
+      "prompt": "I am Codex testing new features and the app. Tiles are 0 through 4. Is a move to tile 5 in bounds? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "game-scene-art-curation 1",
+      "teamKey": "game-scene-art-curation",
+      "role": "ASCII/ANSI Artist",
+      "prompt": "I am Codex testing new features and the app. Give the number of characters in the exact ASCII frame row |.*.| Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 5
+      }
+    },
+    {
+      "name": "game-scene-art-curation 2",
+      "teamKey": "game-scene-art-curation",
+      "role": "ASCII/ANSI Artist",
+      "prompt": "I am Codex testing new features and the app. A renderer accepts only ASCII code points 0 through 127. Can it render U+00E9 as-is? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "general 1",
+      "teamKey": "general",
+      "role": "Council participant",
+      "prompt": "I am Codex testing new features and the app. A meeting lasts 1 hour and 15 minutes. Give total minutes. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 75
+      }
+    },
+    {
+      "name": "general 2",
+      "teamKey": "general",
+      "role": "Council participant",
+      "prompt": "I am Codex testing new features and the app. Venue must be step-free and hold six. It holds eight but has steps and no lift. Does it meet both requirements? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "general-project 1",
+      "teamKey": "general-project",
+      "role": "Implementation specialist",
+      "prompt": "I am Codex testing new features and the app. A refactor renames an internal method. The required public route is /report. Give the public route to retain. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "/report"
+      }
+    },
+    {
+      "name": "general-project 2",
+      "teamKey": "general-project",
+      "role": "Implementation specialist",
+      "prompt": "I am Codex testing new features and the app. An idempotent delete request succeeds twice for the same object. Give number of deleted objects. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 1
+      }
+    },
+    {
+      "name": "green-dragon-runtime-story 1",
+      "teamKey": "green-dragon-runtime-story",
+      "role": "Story State Keeper",
+      "prompt": "I am Codex testing new features and the app. The traveller started with a key and a room move changes no inventory. Do they still have the key? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": true
+      }
+    },
+    {
+      "name": "green-dragon-runtime-story 2",
+      "teamKey": "green-dragon-runtime-story",
+      "role": "Story State Keeper",
+      "prompt": "I am Codex testing new features and the app. Door D opens only when unlocked is true. The flag is false. Does D open? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "initial-setup-assistant 1",
+      "teamKey": "initial-setup-assistant",
+      "role": "Hardware evidence curator",
+      "prompt": "I am Codex testing new features and the app. Host A completed its model inventory; B timed out. Give verified reachable host ID. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "A"
+      }
+    },
+    {
+      "name": "initial-setup-assistant 2",
+      "teamKey": "initial-setup-assistant",
+      "role": "Hardware evidence curator",
+      "prompt": "I am Codex testing new features and the app. A workload needs 8 GiB available and the device has 4 GiB free. Does it fit? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "java-hosted-development 1",
+      "teamKey": "java-hosted-development",
+      "role": "Java implementation developer",
+      "prompt": "I am Codex testing new features and the app. Give the integer value of Java List.of(2,4,6).size(). Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 3
+      }
+    },
+    {
+      "name": "java-hosted-development 2",
+      "teamKey": "java-hosted-development",
+      "role": "Java implementation developer",
+      "prompt": "I am Codex testing new features and the app. Give root Maven build descriptor filename with extension. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "pom.xml"
+      }
+    },
+    {
+      "name": "kernel-creature-tournament 1",
+      "teamKey": "kernel-creature-tournament",
+      "role": "Arena Judge",
+      "prompt": "I am Codex testing new features and the app. A win yields 3 points and draw 1. Give total for two wins and one draw. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 7
+      }
+    },
+    {
+      "name": "kernel-creature-tournament 2",
+      "teamKey": "kernel-creature-tournament",
+      "role": "Arena Judge",
+      "prompt": "I am Codex testing new features and the app. A and B have 4 points each and no tiebreak applies. Are they tied? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": true
+      }
+    },
+    {
+      "name": "knowledge-assisted-coding-subagents 1",
+      "teamKey": "knowledge-assisted-coding-subagents",
+      "role": "Artifact verifier",
+      "prompt": "I am Codex testing new features and the app. A generated program has source and no verified build. Has a working binary been established? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "knowledge-assisted-coding-subagents 2",
+      "teamKey": "knowledge-assisted-coding-subagents",
+      "role": "Artifact verifier",
+      "prompt": "I am Codex testing new features and the app. A ZIP requires Program.cs and only has notes.txt and README.md. Give exact missing entry. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "Program.cs"
+      }
+    },
+    {
+      "name": "learning-round 1",
+      "teamKey": "learning-round",
+      "role": "Evidence verifier",
+      "prompt": "I am Codex testing new features and the app. A hypothesis predicted 8 items and observed count was 6. Give observed count. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 6
+      }
+    },
+    {
+      "name": "learning-round 2",
+      "teamKey": "learning-round",
+      "role": "Evidence verifier",
+      "prompt": "I am Codex testing new features and the app. An article was linked but its contents were never retrieved. Were its claims directly verified? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "minecraft-development 1",
+      "teamKey": "minecraft-development",
+      "role": "Minecraft implementation developer",
+      "prompt": "I am Codex testing new features and the app. Give the namespace of Minecraft resource identifier workshop:fox_totem. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "workshop"
+      }
+    },
+    {
+      "name": "minecraft-development 2",
+      "teamKey": "minecraft-development",
+      "role": "Minecraft implementation developer",
+      "prompt": "I am Codex testing new features and the app. Give the path after the colon in Minecraft resource identifier workshop:blocks/tile. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "blocks/tile"
+      }
+    },
+    {
+      "name": "neural-training 1",
+      "teamKey": "neural-training",
+      "role": "Evidence curator",
+      "prompt": "I am Codex testing new features and the app. A has documented source and rights, B has no recorded origin. Give ID meeting both criteria. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "A"
+      }
+    },
+    {
+      "name": "neural-training 2",
+      "teamKey": "neural-training",
+      "role": "Evidence curator",
+      "prompt": "I am Codex testing new features and the app. A model passed two trials and failed one. Give the count of failed trials. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 1
+      }
+    },
+    {
+      "name": "openscad-team 1",
+      "teamKey": "openscad-team",
+      "role": "Parametric modeler",
+      "prompt": "I am Codex testing new features and the app. Give volume of an OpenSCAD solid with sides 2, 3 and 4. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 24
+      }
+    },
+    {
+      "name": "openscad-team 2",
+      "teamKey": "openscad-team",
+      "role": "Parametric modeler",
+      "prompt": "I am Codex testing new features and the app. Give the OpenSCAD function name without parentheses for subtracting an inner solid from an outer solid. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "difference"
+      }
+    },
+    {
+      "name": "powershell-build-development 1",
+      "teamKey": "powershell-build-development",
+      "role": "PowerShell module developer",
+      "prompt": "I am Codex testing new features and the app. Give the integer value of @(2, 4, 6).Count in PowerShell. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 3
+      }
+    },
+    {
+      "name": "powershell-build-development 2",
+      "teamKey": "powershell-build-development",
+      "role": "PowerShell module developer",
+      "prompt": "I am Codex testing new features and the app. Give the PowerShell Get-Item parameter with leading dash for a path containing a literal square bracket. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "-LiteralPath"
+      }
+    },
+    {
+      "name": "program-compiler-team 1",
+      "teamKey": "program-compiler-team",
+      "role": "Program architect",
+      "prompt": "I am Codex testing new features and the app. Evaluate C# 19 / 4 with int operands. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 4
+      }
+    },
+    {
+      "name": "program-compiler-team 2",
+      "teamKey": "program-compiler-team",
+      "role": "Program architect",
+      "prompt": "I am Codex testing new features and the app. In C#, is -7 % 2 nonzero? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": true
+      }
+    },
+    {
+      "name": "project-release-orchestration 1",
+      "teamKey": "project-release-orchestration",
+      "role": "Release curator",
+      "prompt": "I am Codex testing new features and the app. Windows gate passed, Mac gate failed, and both are required. Can the release pass? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "project-release-orchestration 2",
+      "teamKey": "project-release-orchestration",
+      "role": "Release curator",
+      "prompt": "I am Codex testing new features and the app. Artifact A targets win-x64 and B targets osx-arm64. Give the ID for Apple Silicon. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "B"
+      }
+    },
+    {
+      "name": "publisher-audio 1",
+      "teamKey": "publisher-audio",
+      "role": "Result reviewer",
+      "prompt": "I am Codex testing new features and the app. Give the exact four-letter marker after the RIFF size field in a WAV file. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "WAVE"
+      }
+    },
+    {
+      "name": "publisher-audio 2",
+      "teamKey": "publisher-audio",
+      "role": "Result reviewer",
+      "prompt": "I am Codex testing new features and the app. Give audio channel count of stereo. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 2
+      }
+    },
+    {
+      "name": "publisher-image 1",
+      "teamKey": "publisher-image",
+      "role": "Result reviewer",
+      "prompt": "I am Codex testing new features and the app. Choose uppercase PNG or JPEG for a transparent raster image. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "PNG"
+      }
+    },
+    {
+      "name": "publisher-image 2",
+      "teamKey": "publisher-image",
+      "role": "Result reviewer",
+      "prompt": "I am Codex testing new features and the app. A 400\u00d7200 image has how many width units per one height unit? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 2
+      }
+    },
+    {
+      "name": "publisher-panel 1",
+      "teamKey": "publisher-panel",
+      "role": "Layout architect",
+      "prompt": "I am Codex testing new features and the app. Give the array of IDs h, f, c for heading, figure, caption in reading order. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": [
+          "h",
+          "f",
+          "c"
+        ]
+      }
+    },
+    {
+      "name": "publisher-panel 2",
+      "teamKey": "publisher-panel",
+      "role": "Layout architect",
+      "prompt": "I am Codex testing new features and the app. The HTML label is for=email. Give matching input ID. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "email"
+      }
+    },
+    {
+      "name": "publisher-video 1",
+      "teamKey": "publisher-video",
+      "role": "Result reviewer",
+      "prompt": "I am Codex testing new features and the app. An export is 2 seconds at exactly 24 fps. Give frame count. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 48
+      }
+    },
+    {
+      "name": "publisher-video 2",
+      "teamKey": "publisher-video",
+      "role": "Result reviewer",
+      "prompt": "I am Codex testing new features and the app. The requested format is MP4 and returned file is WebM. Is the requested format matched? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "name": "spreadsheet-team 1",
+      "teamKey": "spreadsheet-team",
+      "role": "Formula and data specialist",
+      "prompt": "I am Codex testing new features and the app. Give the Excel formula including = for summing A1 through A3 with SUM. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": "=SUM(A1:A3)"
+      }
+    },
+    {
+      "name": "spreadsheet-team 2",
+      "teamKey": "spreadsheet-team",
+      "role": "Formula and data specialist",
+      "prompt": "I am Codex testing new features and the app. Values are 5, blank, 7. Give count of numeric cells. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 2
+      }
+    },
+    {
+      "name": "whisper-assistant 1",
+      "teamKey": "whisper-assistant",
+      "role": "Transcript reviewer",
+      "prompt": "I am Codex testing new features and the app. A transcript has 3 confirmed utterances and one marked inaudible. Give confirmed utterance count. Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": 3
+      }
+    },
+    {
+      "name": "whisper-assistant 2",
+      "teamKey": "whisper-assistant",
+      "role": "Transcript reviewer",
+      "prompt": "I am Codex testing new features and the app. An utterance is marked inaudible and no recording is available. Can its exact words be verified? Reply with a JSON object with the sole key result.",
+      "expected": {
+        "result": false
+      }
+    }
+  ]
+}

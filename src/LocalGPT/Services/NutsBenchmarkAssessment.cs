@@ -71,6 +71,7 @@ public sealed class NutsBenchmarkAssessment(
         if (scenario.HeldOut)
             report.NutsHeldOutScenarioSha256 = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(scenario.Cases, JsonOptions)));
         var roleCases = scenario.Cases.GroupBy(item => (Team: item.TeamKey.Trim().ToUpperInvariant(), Role: item.Role.Trim().ToUpperInvariant())).ToList();
+        var qualified = new List<(NutsRoleEvidence Evidence, long DurationMilliseconds)>();
         foreach (var target in report.Targets)
         foreach (var profile in target.Profiles)
         {
@@ -78,6 +79,7 @@ public sealed class NutsBenchmarkAssessment(
             foreach (var role in roleCases)
             {
                 var passed = 0;
+                long durationMilliseconds = 0;
                 var gaps = new List<string>();
                 var unmeasured = new List<string>();
                 foreach (var item in role)
@@ -86,21 +88,29 @@ public sealed class NutsBenchmarkAssessment(
                     if (!results.TryGetValue(name, out var result) || !string.IsNullOrEmpty(result.Error) || result.ResponseTextTruncated)
                         unmeasured.Add(name);
                     else if (Matches(result.ResponseText, item.Expected))
+                    {
                         passed++;
+                        durationMilliseconds += result.TotalMilliseconds;
+                    }
                     else
                         gaps.Add(name);
                 }
 
                 var definition = role.First();
-                report.NutsRoleEvidence.Add(new NutsRoleEvidence(target.Model.SelectionKey, target.Model.DisplayName,
-                    profile.ProfileName, definition.TeamKey.Trim(), definition.Role.Trim(), passed, gaps, unmeasured));
+                var evidence = new NutsRoleEvidence(target.Model.SelectionKey, target.Model.DisplayName,
+                    profile.ProfileName, definition.TeamKey.Trim(), definition.Role.Trim(), passed, gaps, unmeasured);
+                report.NutsRoleEvidence.Add(evidence);
+                if (passed >= 2 && gaps.Count == 0 && unmeasured.Count == 0)
+                    qualified.Add((evidence, durationMilliseconds > 0 ? durationMilliseconds : long.MaxValue));
             }
         }
 
-        report.NutsRoleRecommendations = report.NutsRoleEvidence
-            .Where(evidence => evidence.Passed >= 2 && evidence.CapabilityGaps.Count == 0 && evidence.UnmeasuredCases.Count == 0)
-            .GroupBy(evidence => (evidence.TeamKey.ToUpperInvariant(), evidence.Role.ToUpperInvariant()))
-            .Select(group => group.OrderBy(evidence => evidence.ModelSelectionKey, StringComparer.OrdinalIgnoreCase).First())
+        report.NutsRoleRecommendations = qualified
+            .GroupBy(candidate => (candidate.Evidence.TeamKey.ToUpperInvariant(), candidate.Evidence.Role.ToUpperInvariant()))
+            .Select(group => group.OrderBy(candidate => candidate.DurationMilliseconds)
+                .ThenBy(candidate => candidate.Evidence.ModelSelectionKey, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(candidate => candidate.Evidence.ProfileName, StringComparer.OrdinalIgnoreCase)
+                .First().Evidence)
             .ToList();
     }
 
