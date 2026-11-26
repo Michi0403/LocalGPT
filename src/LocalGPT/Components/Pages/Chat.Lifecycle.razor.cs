@@ -804,6 +804,17 @@ namespace LocalGPT.Components.Pages
 
         modelSelectionNotice = string.Empty;
         hadUnavailableProviderSelections = false;
+        // A preset can be selected before provider discovery completes. Resolve its
+        // model pool once routes become available so the picker uses the same keys.
+        var identity = new ProviderModelIdentity();
+        if (SelectedModelPreset is not null && CouncilModelRoutes.Any(route =>
+            !identity.LooksProviderQualified(route.ModelName) && string.IsNullOrWhiteSpace(route.ProviderEndpoint)))
+        {
+            CouncilModelRoutes = CouncilHardwareRoads.ResolvePresetRoutes(
+                SelectedCouncilModelNames, CouncilModelRoutes, OllamaCandidates,
+                ResolveCouncilOutputTokens(), ResolveCouncilContextTokens()).ToList();
+            SelectedCouncilModelNames = CouncilModelRoutes.Select(route => route.ModelName).ToList();
+        }
         SelectedCouncilModelNames = ReconcileAvailableProviderSelectionKeys(SelectedCouncilModelNames, "Council");
         DiagnosticCouncilModelNames = ReconcileAvailableProviderSelectionKeys(DiagnosticCouncilModelNames, "Diagnostic Council");
         SynchronizeSelectedCouncilRoutes();
