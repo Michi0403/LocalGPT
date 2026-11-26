@@ -98,7 +98,13 @@ public sealed class NutsBenchmarkAssessment(
 
                 var definition = role.First();
                 var evidence = new NutsRoleEvidence(target.Model.SelectionKey, target.Model.DisplayName,
-                    profile.ProfileName, definition.TeamKey.Trim(), definition.Role.Trim(), passed, gaps, unmeasured);
+                    profile.ProfileName, definition.TeamKey.Trim(), definition.Role.Trim(), passed, gaps, unmeasured)
+                {
+                    ContextTokens = profile.ContextTokens,
+                    OutputTokens = profile.OutputTokens,
+                    OllamaNumGpu = profile.OllamaNumGpu,
+                    PassedCaseMilliseconds = passed > 0 ? durationMilliseconds : null
+                };
                 report.NutsRoleEvidence.Add(evidence);
                 if (passed >= 2 && gaps.Count == 0 && unmeasured.Count == 0)
                     qualified.Add((evidence, durationMilliseconds > 0 ? durationMilliseconds : long.MaxValue));

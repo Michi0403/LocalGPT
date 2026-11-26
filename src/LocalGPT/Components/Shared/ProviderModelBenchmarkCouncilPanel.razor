@@ -152,6 +152,18 @@
                     {
                         <li>
                             @evidence.ModelDisplayName · @evidence.ProfileName · @evidence.TeamKey / @evidence.Role · @evidence.Passed passed
+                            @if (evidence.ContextTokens is int contextTokens && evidence.OutputTokens is int outputTokens)
+                            {
+                                <span> · @contextTokens.ToString("N0") context · @outputTokens.ToString("N0") output</span>
+                            }
+                            @if (evidence.OllamaNumGpu is int gpuLayers)
+                            {
+                                <span> · @gpuLayers GPU layers</span>
+                            }
+                            @if (evidence.PassedCaseMilliseconds is long passedMilliseconds)
+                            {
+                                <span> · @TimeSpan.FromMilliseconds(passedMilliseconds).TotalSeconds.ToString("0.00") s for passed cases</span>
+                            }
                             @if (evidence.CapabilityGaps.Count > 0)
                             {
                                 <span> · Check failed: @CouncilText.FormatJoinedList(evidence.CapabilityGaps, ", ")</span>
@@ -180,6 +192,10 @@
                             <DxCheckBox ValidationEnabled="false" Checked="@selectedNutsDefaults.Contains(recommendation)"
                                         Enabled="@(!isBusy)" CheckedChanged="@((bool selected) => SelectNutsDefault(recommendation, selected))">
                                 @recommendation.ModelDisplayName · @recommendation.TeamKey / @recommendation.Role
+                                @if (recommendation.ContextTokens is int recommendedContext && recommendation.OutputTokens is int recommendedOutput)
+                                {
+                                    <span> · measured with @recommendedContext.ToString("N0") context / @recommendedOutput.ToString("N0") output</span>
+                                }
                             </DxCheckBox>
                         </li>
                     }

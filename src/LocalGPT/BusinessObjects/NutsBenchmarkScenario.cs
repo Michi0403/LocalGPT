@@ -43,4 +43,17 @@ public sealed record NutsRoleEvidence(
     string Role,
     int Passed,
     IReadOnlyList<string> CapabilityGaps,
-    IReadOnlyList<string> UnmeasuredCases);
+    IReadOnlyList<string> UnmeasuredCases)
+{
+    /// <summary>Measured context limit. Older reports may omit it.</summary>
+    public int? ContextTokens { get; init; }
+
+    /// <summary>Measured output limit. Older reports may omit it.</summary>
+    public int? OutputTokens { get; init; }
+
+    /// <summary>Ollama GPU layer setting when the measured profile overrides it.</summary>
+    public int? OllamaNumGpu { get; init; }
+
+    /// <summary>Total elapsed time for all passed cases in this role and profile.</summary>
+    public long? PassedCaseMilliseconds { get; init; }
+}
