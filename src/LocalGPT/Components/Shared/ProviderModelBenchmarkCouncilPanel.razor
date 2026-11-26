@@ -7,6 +7,7 @@
 @inject ILogger<ProviderModelBenchmarkCouncilPanel> Logger
 @inject IProviderModelReviewerPolicyService ReviewerPolicy
 @inject NutsBenchmarkAssessment NutsAssessment
+@inject IDxAiFunctionRegistry DxFunctions
 @inject ModelAdapterRevisionService AdapterRevisions
 
 @inject INotificationService Notifier
@@ -169,16 +170,27 @@
             </details>
             @if (report.NutsRoleRecommendations.Count > 0 && string.IsNullOrEmpty(report.NutsHeldOutScenarioSha256))
             {
-                <ul aria-label="Suggested Council role defaults from the scenario">
-                    @foreach (var recommendation in report.NutsRoleRecommendations)
+                @if (assignableNutsDefaults.Count > 0)
+                {
+                    <p>Send recommended models to the Human Collaboration Inbox for approval. Approved models join existing role assignments. For a supplied preset, select the new editable copy in Chat.</p>
+                    <ul aria-label="Suggested Council role defaults from the scenario">
+                    @foreach (var recommendation in assignableNutsDefaults)
                     {
                         <li>
-                            <DxButton Click="@(() => ApplyNutsDefaultAsync(recommendation))" Enabled="@(!isBusy)">
-                                Assign @recommendation.ModelDisplayName to @recommendation.TeamKey / @recommendation.Role
-                            </DxButton>
+                            <DxCheckBox ValidationEnabled="false" Checked="@selectedNutsDefaults.Contains(recommendation)"
+                                        Enabled="@(!isBusy)" CheckedChanged="@((bool selected) => SelectNutsDefault(recommendation, selected))">
+                                @recommendation.ModelDisplayName · @recommendation.TeamKey / @recommendation.Role
+                            </DxCheckBox>
                         </li>
                     }
-                </ul>
+                    </ul>
+                    <DxButton Click="SelectAllNutsDefaults" Enabled="@(!isBusy)">Select all eligible recommendations</DxButton>
+                    <DxButton Click="RequestNutsApprovalAsync" Enabled="@(!isBusy && selectedNutsDefaults.Count > 0)">Request approval for selected roles</DxButton>
+                }
+                @if (unassignableNutsDefaultCount > 0)
+                {
+                    <p>@unassignableNutsDefaultCount measured recommendation(s) could not be offered for assignment because of team role policy or model availability.</p>
+                }
             }
         }
         <ProviderModelBenchmarkReportAuditSummary Report="report" />
@@ -380,6 +392,9 @@
     /// Stores the internal report state used by <see cref="ProviderModelBenchmarkCouncilPanel"/> while executing its surrounding workflow.
     /// </summary>
     ProviderModelBenchmarkReport? report;
+    IReadOnlyList<NutsRoleEvidence> assignableNutsDefaults = [];
+    readonly HashSet<NutsRoleEvidence> selectedNutsDefaults = [];
+    int unassignableNutsDefaultCount;
     /// <summary>
     /// Stores the cancellation source used by <see cref="ProviderModelBenchmarkCouncilPanel"/> to stop its current background or asynchronous operation.
     /// </summary>
@@ -458,6 +473,9 @@
         benchmarkCts = new CancellationTokenSource();
         isBusy = true;
         report = null;
+        assignableNutsDefaults = [];
+        selectedNutsDefaults.Clear();
+        unassignableNutsDefaultCount = 0;
         adapterReview = null;
         adapterBaseKey = string.Empty;
         activeRunId = Guid.NewGuid();
@@ -487,6 +505,7 @@
             }, benchmarkCts.Token);
             await InvokeAsync(() => BenchmarkStarted.InvokeAsync(activeRunId.Value)).ConfigureAwait(false);
             var completedReport = await benchmarkTask.ConfigureAwait(false);
+            var assignable = await NutsAssessment.GetAssignableAsync(completedReport, benchmarkCts.Token).ConfigureAwait(false);
             HardwarePerformancePreset? savedPerformancePreset = null;
             if (scenario is null && completedReport.Targets.Any(target => string.IsNullOrWhiteSpace(target.Error) && !string.IsNullOrWhiteSpace(target.Recommendation.ProfileName)))
             {
@@ -499,6 +518,8 @@
             await InvokeAsync(async () =>
             {
                 report = completedReport;
+                assignableNutsDefaults = assignable;
+                unassignableNutsDefaultCount = report.NutsRoleRecommendations.Count - assignable.Count;
                 var succeeded = report.Targets.Count(target => string.IsNullOrWhiteSpace(target.Error));
                 statusText = scenario is not null
                     ? $"NUTS measured {report.NutsRoleEvidence.Count} model, profile and role combinations."
@@ -528,17 +549,31 @@
         }
     }
 
-    /// <summary>Applies the exact role and host displayed by the selected recommendation.</summary>
-    private async Task ApplyNutsDefaultAsync(NutsRoleEvidence recommendation)
+    private void SelectNutsDefault(NutsRoleEvidence recommendation, bool selected)
     {
-        if (report is null || isBusy)
+        if (selected)
+            selectedNutsDefaults.Add(recommendation);
+        else
+            selectedNutsDefaults.Remove(recommendation);
+    }
+
+    private void SelectAllNutsDefaults() => selectedNutsDefaults.UnionWith(assignableNutsDefaults);
+
+    private async Task RequestNutsApprovalAsync()
+    {
+        if (report is null || isBusy || selectedNutsDefaults.Count == 0)
             return;
 
         isBusy = true;
+        var selection = selectedNutsDefaults.ToArray();
         try
         {
-            await NutsAssessment.ApplyAsync(report, recommendation, userConfirmed: true, CancellationToken.None).ConfigureAwait(false);
-            await InvokeAsync(() => statusText = $"Assigned {recommendation.ModelDisplayName} to {recommendation.TeamKey} / {recommendation.Role}.").ConfigureAwait(false);
+            var result = await NutsAssessment.RequestApprovalsAsync(DxFunctions, report.RunId, selection, CancellationToken.None).ConfigureAwait(false);
+            await InvokeAsync(() =>
+            {
+                selectedNutsDefaults.ExceptWith(result.Queued);
+                statusText = result.Status;
+            }).ConfigureAwait(false);
         }
         catch (InvalidOperationException exception)
         {
@@ -546,8 +581,8 @@
         }
         catch (Exception exception)
         {
-            Logger.LogError(exception, "Saving the NUTS role default failed.");
-            await InvokeAsync(() => statusText = "The suggested role default could not be saved.").ConfigureAwait(false);
+            Logger.LogError(exception, "Requesting approval for NUTS role assignments failed.");
+            await InvokeAsync(() => statusText = "The role assignment approvals could not be requested. Check the Human Collaboration Inbox for any requests already created.").ConfigureAwait(false);
         }
         finally
         {

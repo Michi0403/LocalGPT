@@ -137,31 +137,94 @@ public sealed class NutsBenchmarkAssessment(
         }
     }
 
-    /// <summary>Saves one recommended model through the ordinary Council role settings after explicit selection.</summary>
-    internal async Task ApplyAsync(ProviderModelBenchmarkReport report, NutsRoleEvidence recommendation, bool userConfirmed,
+    /// <summary>Lists measured recommendations that can add a model to an enabled AI role.</summary>
+    internal async Task<IReadOnlyList<NutsRoleEvidence>> GetAssignableAsync(ProviderModelBenchmarkReport report, CancellationToken cancellationToken)
+    {
+        if (report.NutsRoleRecommendations.Count == 0 || !string.IsNullOrEmpty(report.NutsHeldOutScenarioSha256))
+            return [];
+
+        var enabledTeams = (await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false))
+            .Where(team => team.IsEnabled && !team.IsDeleted)
+            .ToDictionary(team => team.Key, StringComparer.OrdinalIgnoreCase);
+        var installedModels = (await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false))
+            .Where(model => model.IsInstalled)
+            .Select(model => model.SelectionKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return report.NutsRoleRecommendations.Where(recommendation => installedModels.Contains(recommendation.ModelSelectionKey)
+            && enabledTeams.TryGetValue(recommendation.TeamKey, out var team)
+            && FindAssignableRole(team, recommendation.Role, recommendation.ModelSelectionKey) is not null).ToArray();
+    }
+
+    /// <summary>Queues one review per preset using the same approval inbox as other LocalGPT operations.</summary>
+    internal async Task<(IReadOnlyList<NutsRoleEvidence> Queued, string Status)> RequestApprovalsAsync(
+        IDxAiFunctionRegistry registry, Guid benchmarkId, IReadOnlyList<NutsRoleEvidence> selection, CancellationToken cancellationToken)
+    {
+        var queued = new List<NutsRoleEvidence>();
+        var errors = new List<string>();
+        var requests = 0;
+        foreach (var group in selection.GroupBy(item => item.TeamKey, StringComparer.OrdinalIgnoreCase))
+        {
+            var result = await registry.InvokeAsync(NutsRoleAssignmentFunction.FunctionName, new DxAiFunctionInvocationRequest
+            {
+                Parameters = JsonSerializer.SerializeToElement(new
+                {
+                    benchmarkId,
+                    preset = group.Key,
+                    values = group.OrderBy(item => item.Role, StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(item => item.Role, item => item.ModelSelectionKey, StringComparer.OrdinalIgnoreCase)
+                }),
+                RequestedBy = "NUTS benchmark"
+            }, cancellationToken).ConfigureAwait(false);
+            if (result.Status == "HumanApprovalPending")
+            {
+                queued.AddRange(group);
+                requests++;
+            }
+            else
+            {
+                errors.Add($"{group.Key}: {result.Error}");
+            }
+        }
+
+        var status = requests > 0 ? $"{requests} preset approval request(s) waiting in the Human Collaboration Inbox." : string.Empty;
+        return (queued, string.Join(" ", new[] { status }.Concat(errors).Where(message => message.Length > 0)));
+    }
+
+    /// <summary>Adds approved model identities while retaining current role membership and selection policies.</summary>
+    internal async Task<string> AddApprovedModelsAsync(
+        ProviderModelBenchmarkReport report, string teamKey, IReadOnlyDictionary<string, string> assignments,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            if (!userConfirmed || !report.NutsRoleRecommendations.Contains(recommendation))
-                throw new InvalidOperationException("Choose an exact completed NUTS recommendation.");
+        if (assignments.Count == 0 || !string.IsNullOrEmpty(report.NutsHeldOutScenarioSha256)
+            || assignments.Any(assignment => !report.NutsRoleRecommendations.Any(item =>
+                item.TeamKey.Equals(teamKey, StringComparison.OrdinalIgnoreCase)
+                && item.Role.Equals(assignment.Key, StringComparison.OrdinalIgnoreCase)
+                && item.ModelSelectionKey.Equals(assignment.Value, StringComparison.OrdinalIgnoreCase))))
+            throw new InvalidOperationException("Every requested assignment must match a completed NUTS recommendation.");
 
-            var available = await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false);
-            if (!available.Any(model => model.IsInstalled && model.SelectionKey.Equals(recommendation.ModelSelectionKey, StringComparison.OrdinalIgnoreCase)))
-                throw new InvalidOperationException("The recommended model is unavailable on its measured host.");
-
-            await SaveRoleDefaultAsync(recommendation.TeamKey, recommendation.Role, recommendation.ModelSelectionKey, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
+        var installed = (await providerModels.GetCandidatesAsync(cancellationToken).ConfigureAwait(false))
+            .Where(model => model.IsInstalled).Select(model => model.SelectionKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var team = await teams.FindTeamAsync(teamKey, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("The Council preset is no longer enabled.");
+        var added = 0;
+        foreach (var (roleName, model) in assignments)
         {
-            throw;
+            var role = team.Roles.SingleOrDefault(item => item.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase));
+            if (role is not null && role.AssignedModelKeys.Contains(model, StringComparer.OrdinalIgnoreCase))
+                continue;
+            if (!installed.Contains(model) || FindAssignableRole(team, roleName, model) is null)
+                throw new InvalidOperationException("The role or the recommended model is no longer available. Review the assignment again.");
+            role!.AssignedModelKeys.Add(model);
+            added++;
         }
-        catch (Exception exception)
-        {
-            logger.LogWarning(exception, "Applying a NUTS role recommendation failed for benchmark {RunId}.", report.RunId);
-            throw;
-        }
+        return added == 0 ? team.Key : await SaveTeamAsync(team, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>Finds an AI role that can accept this provider-qualified model.</summary>
+    private OrganicCouncilRoleDefinition? FindAssignableRole(OrganicCouncilTeamDefinition team, string roleName, string model)
+        => team.Roles.SingleOrDefault(role => role.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase)
+            && role.HumanParticipationMode != HumanParticipationMode.HumanOnly
+            && !role.AssignedModelKeys.Contains(model, StringComparer.OrdinalIgnoreCase));
 
     internal async Task SaveRoleDefaultAsync(string teamKey, string roleName, string modelKey, CancellationToken cancellationToken,
         string reviewedAdapterDigest = "")
@@ -170,21 +233,12 @@ public sealed class NutsBenchmarkAssessment(
         {
             var team = await teams.FindTeamAsync(teamKey, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException("The recommended team is unavailable.");
-            var role = team.Roles.SingleOrDefault(role => role.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase));
-            if (role is null || role.HumanParticipationMode == HumanParticipationMode.HumanOnly
-                || role.AiSelectionMode != CouncilRoleAiSelectionMode.AllSelected || role.AssignedModelKeys.Count > 0)
+            var role = FindUnassignedRole(team, roleName);
+            if (role is null)
                 throw new InvalidOperationException("The role already has a selection policy or is unavailable.");
 
-            role.AiSelectionMode = CouncilRoleAiSelectionMode.AssignedModels;
-            role.AssignedModelKeys = [modelKey];
-            role.ReviewedAdapterModelKey = reviewedAdapterDigest.Length == 0 ? string.Empty : modelKey;
-            role.ReviewedAdapterDigest = reviewedAdapterDigest;
-            await teams.SaveAsync(new SaveCouncilTeamConfigurationRequest
-            {
-                Team = team,
-                IsEnabled = team.IsEnabled,
-                UserConfirmed = true
-            }, cancellationToken).ConfigureAwait(false);
+            SetRoleDefault(role, modelKey, reviewedAdapterDigest);
+            await SaveTeamAsync(team, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException exception)
         {
@@ -196,6 +250,31 @@ public sealed class NutsBenchmarkAssessment(
             logger.LogWarning(exception, "Saving a measured Council role default failed.");
             throw;
         }
+    }
+
+    private OrganicCouncilRoleDefinition? FindUnassignedRole(OrganicCouncilTeamDefinition team, string roleName)
+        => team.Roles.SingleOrDefault(role => role.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase)
+            && role.HumanParticipationMode != HumanParticipationMode.HumanOnly
+            && role.AiSelectionMode == CouncilRoleAiSelectionMode.AllSelected
+            && role.AssignedModelKeys.Count == 0);
+
+    private void SetRoleDefault(OrganicCouncilRoleDefinition role, string modelKey, string reviewedAdapterDigest)
+    {
+        role.AiSelectionMode = CouncilRoleAiSelectionMode.AssignedModels;
+        role.AssignedModelKeys = [modelKey];
+        role.ReviewedAdapterModelKey = reviewedAdapterDigest.Length == 0 ? string.Empty : modelKey;
+        role.ReviewedAdapterDigest = reviewedAdapterDigest;
+    }
+
+    private async Task<string> SaveTeamAsync(OrganicCouncilTeamDefinition team, CancellationToken cancellationToken)
+    {
+        var saved = await teams.SaveAsync(new SaveCouncilTeamConfigurationRequest
+        {
+            Team = team,
+            IsEnabled = team.IsEnabled,
+            UserConfirmed = true
+        }, cancellationToken).ConfigureAwait(false);
+        return saved.Key;
     }
 
     private bool Matches(string response, Dictionary<string, JsonElement> expected)

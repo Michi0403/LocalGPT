@@ -349,7 +349,6 @@ namespace LocalGPT.Services
 
                 var hasSavedBindings = team.Roles.Any(role =>
                         role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
-                        (role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange) &&
                         role.AssignedModelKeys is { Count: > 0 }) ||
                     team.WorkflowSteps.Any(step =>
                         step.IsEnabled &&
@@ -422,6 +421,12 @@ namespace LocalGPT.Services
                         role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
                         (role.AiSelectionMode is CouncilRoleAiSelectionMode.AssignedModels or CouncilRoleAiSelectionMode.AssignedModelsRandomRange))
                     .SelectMany(role => role.AssignedModelKeys)
+                    .Concat(team.Roles
+                        .Where(role => role.HumanParticipationMode != HumanParticipationMode.HumanOnly &&
+                            role.AiSelectionMode is CouncilRoleAiSelectionMode.AllSelected or CouncilRoleAiSelectionMode.RandomRange)
+                        .SelectMany(role => role.AssignedModelKeys)
+                        .Intersect(candidates.Where(model => model.IsInstalled).Select(model => model.SelectionKey),
+                            StringComparer.OrdinalIgnoreCase))
                     .Concat(team.WorkflowSteps
                         .Where(step =>
                             step.IsEnabled &&
