@@ -672,13 +672,16 @@ public sealed partial class LocalAiRuntimeService(
         try
         {
             ReportInstallProgress(progress, "Downloading the Hugging Face model snapshot…");
-            var result = await RunBridgeProcessAsync("hf_snapshot_download", new Dictionary<string, object?>
+            var download = RunBridgeProcessAsync("hf_snapshot_download", new Dictionary<string, object?>
             {
                 ["model_id"] = request.ModelId.Trim(),
                 ["revision"] = revision,
                 ["local_dir"] = incomingPath,
                 ["token_environment_variable"] = config.HuggingFaceTokenEnvironmentVariable
-            }, TimeSpan.FromHours(12), cancellationToken).ConfigureAwait(false);
+            }, TimeSpan.FromHours(12), cancellationToken);
+            if (progress is not null)
+                await ReportSnapshotDownloadProgressAsync(download, incomingPath, progress, cancellationToken).ConfigureAwait(false);
+            var result = await download.ConfigureAwait(false);
             if (!result.Succeeded)
                 throw new InvalidOperationException(string.IsNullOrWhiteSpace(result.Message) ? "Hugging Face model snapshot installation failed." : result.Message);
 
@@ -1315,14 +1318,48 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
-    /// <summary>
-    /// Performs run bridge process as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <param name="operation">Operation value supplied to the local AI runtime operation and used when producing its result.</param>
-    /// <param name="parameters">Parameters value supplied to the local AI runtime operation and used when producing its result.</param>
-    /// <param name="timeout">Timeout value supplied to the local AI runtime operation and used when producing its result.</param>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
-    /// <returns>The local AI runtime job result produced by the operation.</returns>
+    private async Task ReportSnapshotDownloadProgressAsync(Task download, string incomingPath, IProgress<string> progress, CancellationToken cancellationToken)
+    {
+        long previousMebibytes = 0;
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (!download.IsCompleted)
+            {
+                var tick = timer.WaitForNextTickAsync(cancellationToken).AsTask();
+                if (await Task.WhenAny(download, tick).ConfigureAwait(false) == download ||
+                    !await tick.ConfigureAwait(false))
+                    return;
+
+                try
+                {
+                    var bytes = new DirectoryInfo(incomingPath)
+                        .EnumerateFiles("*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+                        .Sum(file => file.Length);
+                    var mebibytes = bytes / (1024 * 1024);
+                    if (mebibytes == previousMebibytes)
+                        continue;
+
+                    ReportInstallProgress(progress, $"Downloading the Hugging Face model snapshot… {mebibytes:N0} MiB staged.");
+                    previousMebibytes = mebibytes;
+                }
+                catch (IOException)
+                {
+                    // The downloader may move a staged file while it is being counted.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Progress is advisory. The bridge reports any installation failure.
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller awaits the bridge so it can stop before the staging directory is cleaned up.
+        }
+    }
+
+    /// <summary>Runs a reviewed bridge operation in the managed Python environment.</summary>
     private async Task<LocalAiRuntimeJobResult> RunBridgeProcessAsync(
         string operation,
         Dictionary<string, object?> parameters,
