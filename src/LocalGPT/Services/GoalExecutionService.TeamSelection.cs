@@ -54,8 +54,7 @@ public sealed partial class GoalExecutionService
             }
 
             bool Staffable(OrganicCouncilTeamDefinition team) => availableModelCount <= 0 || staffing.CanStaff(team, availableModelCount);
-            var excludedKeys = ReadAutoRoutingExcludedTeamKeys();
-            var candidates = ranked.Where(entry => Staffable(entry.Team) && !excludedKeys.Contains(entry.Team.Key)).ToList();
+            var candidates = ranked.Where(entry => Staffable(entry.Team)).ToList();
             var minimumScore = ReadCatalogFallbackMinimumTeamScore();
             OrganicCouncilTeamDefinition? chosen = hasRequirements ? candidates.Where(entry => entry.Missing == 0).Select(entry => entry.Team).FirstOrDefault() : null;
             var routedByKeywordScore = false;
@@ -65,7 +64,7 @@ public sealed partial class GoalExecutionService
                 routedByKeywordScore = chosen is not null;
             }
             chosen ??= (requested is not null && Staffable(requested) ? requested : null)
-                ?? configuredTeams.FirstOrDefault(team => string.Equals(team.Key, "general", StringComparison.OrdinalIgnoreCase) && Staffable(team) && !excludedKeys.Contains(team.Key))
+                ?? configuredTeams.FirstOrDefault(team => string.Equals(team.Key, "general", StringComparison.OrdinalIgnoreCase) && Staffable(team))
                 ?? candidates.Select(entry => entry.Team).FirstOrDefault();
             if (requested is not null && chosen is not null && !string.Equals(requested.Key, chosen.Key, StringComparison.OrdinalIgnoreCase))
                 logger.LogInformation(
@@ -73,8 +72,8 @@ public sealed partial class GoalExecutionService
                     requested.Key, chosen.Key, hasRequirements, availableModelCount, minimumScore);
             if (routedByKeywordScore && requested is not null && chosen is not null && !string.Equals(requested.Key, chosen.Key, StringComparison.OrdinalIgnoreCase))
                 logger.LogInformation(
-                    "Goal keyword routing top candidates: {TopCandidates}; {ExcludedCount} team(s) are excluded from automatic routing.",
-                    string.Join(", ", candidates.Take(3).Select(entry => $"{entry.Team.Key}={entry.Score}")), excludedKeys.Count);
+                    "Goal keyword routing top candidates: {TopCandidates}.",
+                    string.Join(", ", candidates.Take(3).Select(entry => $"{entry.Team.Key}={entry.Score}")));
             var skipped = ranked.Count - candidates.Count;
             if (skipped > 0)
                 logger.LogInformation("Goal team selection skipped {Skipped} team(s) that need more than {Available} distinct AI model(s).", skipped, availableModelCount);
@@ -85,6 +84,20 @@ public sealed partial class GoalExecutionService
             logger.LogError(exception, "Selecting the goal Council team failed.");
             throw;
         }
+    }
+
+    /// <summary>Limits proposals and execution to teams eligible for the caller's selection mode.</summary>
+    private IReadOnlyList<OrganicCouncilTeamDefinition> GetEligibleGoalTeams(
+        IReadOnlyList<OrganicCouncilTeamDefinition> configuredTeams, bool preserveSelectedTeam, string? requestedTeamKey)
+    {
+        if (preserveSelectedTeam)
+            return configuredTeams.Where(team => string.Equals(team.Key, requestedTeamKey, StringComparison.OrdinalIgnoreCase)).ToArray();
+
+        var excludedKeys = ReadAutoRoutingExcludedTeamKeys();
+        // Hot-seat games need a human player before the Council can produce a result.
+        return configuredTeams.Where(team => !excludedKeys.Contains(team.Key) && !team.Roles.Any(role =>
+            role.HumanParticipationMode == HumanParticipationMode.HumanOnly &&
+            role.PerformanceMode == CouncilRolePerformanceMode.ImprovisationPlayer)).ToArray();
     }
 
     /// <summary>Reads the runtime collection of team keys that automatic goal routing must never select.</summary>

@@ -58,7 +58,9 @@ public sealed partial class GoalExecutionService(
             throw new ArgumentException("A nonempty goal is required.", nameof(request));
 
         var snapshot = await directory.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
-        var configuredTeams = await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var configuredTeams = GetEligibleGoalTeams(
+            await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false),
+            request.PreserveSelectedTeam, request.CouncilRequest.CouncilTeamKey);
         var functions = snapshot.Functions
             .Where(function => function.AvailableToAi && !function.IsCoordinationOnly &&
                 (function.SupportsAutomaticInvocation || function.SupportsDirectInvocation || function.SupportsDeferredApprovalRequest))

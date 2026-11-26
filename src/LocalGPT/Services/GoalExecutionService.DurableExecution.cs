@@ -600,7 +600,10 @@ public sealed partial class GoalExecutionService
         var nextReplanNumber = checkpoint.ReplanCount + 1;
         var snapshot = await directory.SynchronizeAsync(cancellationToken).ConfigureAwait(false);
         var models = checkpoint.ModelSelectionKeys;
-        var configured = await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var configured = GetEligibleGoalTeams(
+            await teams.GetTeamsAsync(cancellationToken: cancellationToken).ConfigureAwait(false),
+            checkpoint.PreserveSelectedTeam, checkpoint.RequestedTeamKey);
+        var eligibleKeys = configured.Select(team => team.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var last = checkpoint.Receipts.LastOrDefault(receipt => receipt.StepKey == checkpoint.Steps[failedIndex].Key);
         var contextFailure = IsGoalContextBudgetError(last?.FailureSummary);
         var cause = System.Text.Json.JsonSerializer.Serialize(new
@@ -622,9 +625,7 @@ public sealed partial class GoalExecutionService
         if (contextFailure && (proposal is null || proposal.Steps.Count > availableSlots))
             return false;
         var replacements = proposal?.Steps.Where(step => !string.IsNullOrWhiteSpace(step.Objective)
-            && liveTeams.Contains(step.TeamKey)
-            && (!checkpoint.PreserveSelectedTeam || string.Equals(step.TeamKey,
-                checkpoint.RequestedTeamKey, StringComparison.OrdinalIgnoreCase)))
+            && liveTeams.Contains(step.TeamKey) && eligibleKeys.Contains(step.TeamKey))
             .Take(availableSlots)
             .Select((step, index) => new GoalExecutionPlanStep
             {
