@@ -603,6 +603,7 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             await using var configuredDbAsyncDisposal = db.ConfigureAwait(false);
             var compiler = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.Id == compilerId, cancellationToken).ConfigureAwait(false)
                 ?? throw new KeyNotFoundException($"Compiler installation {compilerId} was not found.");
+            var previousVersion = compiler.Version;
             var result = await RunProcessAsync(compiler.ExecutablePath, compiler.ValidationArguments, compiler.CompilerHomePath, compiler.EnvironmentVariablesJson, 30, cancellationToken).ConfigureAwait(false);
             compiler.LastValidatedAtUtc = DateTime.UtcNow;
             compiler.LastValidationSucceeded = result.ExitCode == 0;
@@ -621,6 +622,14 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             }
             compiler.UpdatedAtUtc = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            if (compiler.LastValidationSucceeded && !string.Equals(previousVersion, compiler.Version, StringComparison.Ordinal))
+            {
+                // The generic version fallback can contain process output. Only emit normalized numeric versions.
+                Version.TryParse(previousVersion, out var previous);
+                Version.TryParse(compiler.Version, out var current);
+                logger.LogInformation("Compiler/runtime installation {CompilerId} registered a validated version change from {PreviousVersion} to {CurrentVersion}.",
+                    compiler.Id, previous?.ToString() ?? "unreported", current?.ToString() ?? "unreported");
+            }
             compiler.EnvironmentVariables = toolchainDiscovery.ParseEnvironmentVariables(compiler.EnvironmentVariablesJson).ToList();
             logger.LogInformation("Compiler/runtime installation {CompilerId} validation completed with success={Succeeded} and exit code {ExitCode}; executable path and output omitted from logs.", compiler.Id, compiler.LastValidationSucceeded, result.ExitCode);
             return compiler;

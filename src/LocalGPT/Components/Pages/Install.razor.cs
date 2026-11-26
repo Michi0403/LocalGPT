@@ -1007,6 +1007,8 @@ namespace LocalGPT.Components.Pages
             IsToolchainBusy = true;
             ToolchainStatus = T("Install.Toolchains.Discovering", "Discovering toolchains...");
             await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            var previousVersions = (await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(false))
+                .ToDictionary(item => item.Id, item => item.Version);
             var discovered = await ProjectMaintenance.DiscoverCompilerInstallationsAsync(new DiscoverProjectCompilersRequest
             {
                 CustomSearchRootsText = ToolchainSearchRoots,
@@ -1016,7 +1018,10 @@ namespace LocalGPT.Components.Pages
             }).ConfigureAwait(false);
             CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(false) /* renderer-affine discovery refresh */;
             var validatedCount = discovered.Count(item => item.LastValidationSucceeded);
-            ToolchainStatus = $"Discovered {discovered.Count} candidate(s), automatically validated {validatedCount}; {CompilerInstallations.Count} profile(s) are stored.";
+            var updatedCount = discovered.Count(item => item.LastValidationSucceeded &&
+                previousVersions.TryGetValue(item.Id, out var version) && !string.IsNullOrEmpty(version) &&
+                !string.Equals(version, item.Version, StringComparison.Ordinal));
+            ToolchainStatus = $"Discovered {discovered.Count} candidate(s), automatically validated {validatedCount}. Updated {updatedCount} stored version(s); {CompilerInstallations.Count} profile(s) are stored.";
             Notifier.ShowSuccess(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
         }
         catch (Exception exception)
@@ -1033,8 +1038,8 @@ namespace LocalGPT.Components.Pages
     }
 
 
-    /// <summary>Persists any user-selected executable as a compiler/runtime profile without requiring a built-in discovery profile.</summary>
-    /// <returns>A task that completes after the manually configured toolchain has been saved.</returns>
+    /// <summary>Persists a user-selected compiler/runtime profile and runs its configured version probe.</summary>
+    /// <returns>A task that completes after saving and validating the profile.</returns>
     private async Task SaveManualToolchainAsync()
     {
         try
@@ -1054,9 +1059,27 @@ namespace LocalGPT.Components.Pages
                 IsDefaultForLanguage = ManualToolchainDefault,
                 UserConfirmed = true
             }).ConfigureAwait(false);
+            try
+            {
+                saved = await ProjectMaintenance.ValidateCompilerInstallationAsync(saved.Id, userConfirmed: true).ConfigureAwait(false);
+                if (saved.LastValidationSucceeded)
+                {
+                    ToolchainStatus = $"Saved and validated {saved.Name} · {saved.Version}.";
+                    Notifier.ShowSuccess(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+                }
+                else
+                {
+                    ToolchainStatus = $"Saved {saved.Name}. Its version probe failed.";
+                    Notifier.ShowError(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+                }
+            }
+            catch (Exception exception)
+            {
+                Logger.LogError(exception, "Validation after saving custom toolchain {CompilerId} failed.", saved.Id);
+                ToolchainStatus = $"Saved {saved.Name}. Its version probe could not complete.";
+                Notifier.ShowError(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
+            }
             CompilerInstallations = await ProjectMaintenance.GetCompilerInstallationsAsync().ConfigureAwait(false);
-            ToolchainStatus = $"Saved manually configured toolchain {saved.Name}. Validate it before using it for builds or runtime extensions.";
-            Notifier.ShowSuccess(toastName, ToolchainStatus, T("Install.Toolchains.Title", "Compilers and runtime toolchains"));
             ManualToolchainName = string.Empty;
             ManualToolchainExecutablePath = string.Empty;
             ManualToolchainHomePath = string.Empty;

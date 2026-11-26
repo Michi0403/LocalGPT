@@ -995,7 +995,7 @@
                     <label>Validation arguments<DxTextBox @bind-Text="ManualToolchainValidationArguments" NullText="--version" /></label>
                     <label>Optional knowledge profile key<DxTextBox @bind-Text="ManualToolchainKnowledgeProfileKey" NullText="custom-vendor-sdk" /></label>
                     <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="ManualToolchainDefault" /> Default for this language/family</label>
-                    <DxButton Text="Save custom toolchain" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!IsToolchainBusy && !string.IsNullOrWhiteSpace(ManualToolchainName) && !string.IsNullOrWhiteSpace(ManualToolchainLanguage) && !string.IsNullOrWhiteSpace(ManualToolchainExecutablePath))" Click="SaveManualToolchainAsync" />
+                    <DxButton Text="Save and validate custom toolchain" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!IsToolchainBusy && !string.IsNullOrWhiteSpace(ManualToolchainName) && !string.IsNullOrWhiteSpace(ManualToolchainLanguage) && !string.IsNullOrWhiteSpace(ManualToolchainExecutablePath))" Click="SaveManualToolchainAsync" />
                 </div>
             </details>
 
