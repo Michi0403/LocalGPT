@@ -596,5 +596,7 @@ namespace LocalGPT.Services
         }
 
         private sealed class InsufficientCouncilModelsException(string message) : InvalidOperationException(message);
+
+        private sealed class CouncilModelSelectionException(string message) : InvalidOperationException(message);
     }
 }

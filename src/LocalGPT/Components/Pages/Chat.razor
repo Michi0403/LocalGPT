@@ -685,6 +685,7 @@
                     }
                     @if (!string.IsNullOrWhiteSpace(archive.FinalAnswer))
                     {
+                        <ChatArtifactPreview Content="@archive.FinalAnswer" />
                         <details open><summary>Final Council answer</summary><pre>@archive.FinalAnswer</pre></details>
                     }
                     @foreach (var step in archive.Steps.OrderBy(item => item.SortOrder))

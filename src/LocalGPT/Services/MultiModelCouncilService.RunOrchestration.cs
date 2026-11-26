@@ -943,7 +943,7 @@ namespace LocalGPT.Services
                 };
                 failedResult.CompletedAtUtc = DateTime.UtcNow;
                 if (string.IsNullOrWhiteSpace(failedResult.FinalAnswer))
-                    failedResult.FinalAnswer = ex is InsufficientCouncilModelsException
+                    failedResult.FinalAnswer = ex is InsufficientCouncilModelsException or CouncilModelSelectionException
                         ? ex.Message
                         : "The council run failed before a complete answer could be produced. Partial Council steps remain available below.";
                 failedResult.Warnings.Add($"{ex.GetType().Name}: {ex.Message}");

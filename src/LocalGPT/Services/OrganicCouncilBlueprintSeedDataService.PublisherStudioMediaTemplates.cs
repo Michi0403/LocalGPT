@@ -20,6 +20,12 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 _ => "If the audio workflow is ambiguous, ask whether to generate new audio or edit an existing track in PublisherStudio Audio Studio."
             };
             const string sourceEditInstruction = "An explicit request to trim, cut or edit supplied media already selects editing. Use the connected PublisherStudio capability teaching and the attached workspace. Do not probe model inventories, hardware, Python or generators for this edit.";
+            var generationInstruction = category switch
+            {
+                "image" => "For model-based image creation, call localai.image.generate with modelInstallationId set to the exact installationId returned by localai.models.installed for an image generator, and prompt set to the requested image description.",
+                "video" => "For model-based video creation, call localai.video.generate with modelInstallationId set to the exact installationId returned by localai.models.installed for a video generator, and prompt set to the requested video description.",
+                _ => "For audio generation, use the advertised function and its input schema when a compatible installed generator is available."
+            };
             var preferred = new List<string>
             {
                 "localai.runtime.status", "localai.runtime.configuration", "toolchain.discover", "localai.models.installed",
@@ -68,7 +74,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                         "LeaderSingle", canUseOrganicFunctions: true,
                         allowedAutomaticFunctions: ["localai.models.installed"]),
                     Step($"{category}-authoring", "Create or plan approved media", 20, "Execution", "Media author",
-                        "If the workflow is ambiguous, ask the choice question and stop. For an explicit cut or trim of a Chat attachment, invoke the connected PublisherStudio operation whose advertised schema accepts the requested range and returns the resulting file. Call organic.plugin.invoke with the advertised peer and capability, the original workspaceName and fileName in attachment, and timestamps in payload according to that schema. Leave optional fields absent unless the user needs them. Let LocalGPT show its approval card. If the result already contains a download, report it and stop issuing actions. Use an editor session only when the selected operation requires one. For generation use the requested available generator, localai.image.generate or localai.video.generate where supported. Report the actual file, pending approval or actionable blocker. Task: {{UserPrompt}}\nEvidence: {{Transcript}}",
+                        $"If the workflow is ambiguous, ask the choice question and stop. For an explicit cut or trim of a Chat attachment, invoke the connected PublisherStudio operation whose advertised schema accepts the requested range and returns the resulting file. Call organic.plugin.invoke with the advertised peer and capability, the original workspaceName and fileName in attachment, and timestamps in payload according to that schema. If the result already contains a download, report it and stop issuing actions. Use an editor session only when the selected operation requires one. {generationInstruction} Include optional fields only when needed and use their schema types. If validation rejects the call before approval, correct the indicated fields and retry once. Let LocalGPT show its approval card. Report the actual file, pending approval or actionable blocker. Task: {{{{UserPrompt}}}}\nEvidence: {{{{Transcript}}}}",
                         "LeaderSingle", canUseOrganicFunctions: true, waitForDeferredApprovalsBeforeNextStep: true,
                         allowedAutomaticFunctions: ["organic.plugin.work.read"]),
                     Step($"{category}-verify", "Review output and handoff", 30, "Review", "Result reviewer",

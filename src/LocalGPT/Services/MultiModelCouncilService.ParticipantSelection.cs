@@ -116,8 +116,8 @@ namespace LocalGPT.Services
                             }
                             else if (isAmbiguous)
                             {
-                                throw new InvalidOperationException(
-                                    $"The saved Council model route '{requested}' matches multiple current provider routes. LocalGPT will not guess a host.");
+                                throw new CouncilModelSelectionException(
+                                    "The saved Council model route matches multiple current providers. Refresh the model list and select the exact provider and host.");
                             }
                             else if (identity.TryParseSelectionKey(requested, out var savedReference)
                                 && IsConfiguredProviderEndpoint(savedReference)
@@ -129,8 +129,8 @@ namespace LocalGPT.Services
                             }
                             else
                             {
-                                throw new KeyNotFoundException(
-                                    $"The provider-qualified Council model '{requested}' is no longer configured or discoverable. Refresh provider models and reselect that exact host; LocalGPT will not fall back to a same-name model on another endpoint.");
+                                throw new CouncilModelSelectionException(
+                                    "The selected Council model and host are no longer configured or discoverable. Refresh the model list and reselect the exact provider and host.");
                             }
                         }
                         else
@@ -160,8 +160,8 @@ namespace LocalGPT.Services
                             .ToList();
                         if (bareMatches.Count > 1)
                         {
-                            throw new InvalidOperationException(
-                                $"Model name '{requested}' is exposed by multiple provider hosts. Select the provider-qualified model entry instead of guessing an endpoint.");
+                            throw new CouncilModelSelectionException(
+                                "The selected Council model name is available on multiple hosts. Select the provider-qualified model entry with the host address.");
                         }
                         resolved = bareMatches.Count == 1
                             ? bareMatches[0].ToReference()
