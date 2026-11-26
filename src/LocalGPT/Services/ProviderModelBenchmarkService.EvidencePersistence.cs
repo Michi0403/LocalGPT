@@ -225,6 +225,8 @@ public sealed partial class ProviderModelBenchmarkService
                 ResponseText = responseText ?? string.Empty,
                 Succeeded = taskResult.Succeeded,
                 QualityScore = taskResult.QualityScore,
+                NutsResponseFormatValid = taskResult.NutsResponseFormatValid,
+                NutsAnswerCorrect = taskResult.NutsAnswerCorrect,
                 TokensPerSecond = taskResult.TokensPerSecond,
                 TotalMilliseconds = taskResult.TotalMilliseconds,
                 AttemptCount = taskResult.AttemptCount,
@@ -252,7 +254,7 @@ public sealed partial class ProviderModelBenchmarkService
     /// </summary>
     /// <param name="report">Report value supplied to the provider model benchmark operation and used when producing its result.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task TryPersistBenchmarkEvidenceAsync(ProviderModelBenchmarkReport report)
+    public async Task TryPersistBenchmarkEvidenceAsync(ProviderModelBenchmarkReport report)
     {
         try
         {

@@ -200,7 +200,7 @@ namespace LocalGPT.Components.Pages
                     SourceKey = source.Key,
                     UserConfirmed = true
                 }).ConfigureAwait(false);
-                ToolchainRuntimeStatus = $"Downloaded {source.DisplayName}: {result.Bytes:N0} bytes, SHA-256 {result.Sha256}. {result.InstallHint}";
+                ToolchainRuntimeStatus = $"Downloaded {source.DisplayName} to {result.LocalPath} ({result.Bytes:N0} bytes, SHA-256 {result.Sha256}). {result.InstallHint}";
             }
             catch (Exception exception)
             {

@@ -27,4 +27,11 @@ public interface IPythonJobOrchestrationService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The python plugin process result produced by the operation.</returns>
     Task<PythonPluginProcessResult> RunApprovedPythonPluginAsync(ProjectCompilerInstallation compiler, string scriptPath, JsonElement parameters, CancellationToken cancellationToken = default);
+
+    /// <summary>Runs the packaged trainer through the same admission and cancellation controls as other Python subprocesses.</summary>
+    /// <param name="train">The approved training operation and its typed progress callback.</param>
+    /// <param name="cancellationToken">Cancellation token for the queued or active job.</param>
+    /// <returns>The validated trainer result.</returns>
+    Task<string> RunPackagedTrainingAsync(Func<Action<PythonTrainingProgress>, CancellationToken, Task<string>> train,
+        CancellationToken cancellationToken = default);
 }

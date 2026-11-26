@@ -201,7 +201,15 @@ namespace LocalGPT.Services
         public async Task<ChatUploadWorkspaceInputFile?> ReadOriginalAttachmentAsync(
             Guid conversationId, string workspaceName, string fileName, int maximumBytes, CancellationToken cancellationToken = default)
         {
-            if (conversationId == Guid.Empty || maximumBytes <= 0 || string.IsNullOrWhiteSpace(fileName) ||
+            if (conversationId == Guid.Empty || maximumBytes <= 0 || string.IsNullOrWhiteSpace(fileName))
+                return null;
+
+            // Workspace listings show originals with this directory prefix.
+            const string originalPrefix = "original/";
+            if (fileName.StartsWith(originalPrefix, StringComparison.Ordinal))
+                fileName = fileName[originalPrefix.Length..];
+
+            if (string.IsNullOrWhiteSpace(fileName) ||
                 fileName.IndexOfAny(['/', '\\', ':']) >= 0 || fileName is "." or ".." ||
                 ResolveWorkspacePath(workspaceName) is not { } root)
                 return null;

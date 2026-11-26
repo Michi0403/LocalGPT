@@ -43,55 +43,22 @@ public sealed class HuggingFaceModelCatalogService(
                 HuggingFaceModelSort.Recent or HuggingFaceModelSort.RecentLiked => "lastModified",
                 _ => "downloads"
             };
-            var route = $"https://huggingface.co/api/models?search={Uri.EscapeDataString(query)}&limit={apiLimit}&sort={apiSort}&direction=-1&full=true";
-            using var message = new HttpRequestMessage(HttpMethod.Get, route);
             var tokenName = options.CurrentValue.PythonCore?.HuggingFaceTokenEnvironmentVariable;
-            if (!string.IsNullOrWhiteSpace(tokenName))
-            {
-                var token = Environment.GetEnvironmentVariable(tokenName.Trim());
-                if (!string.IsNullOrWhiteSpace(token))
-                    message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            }
-            message.Headers.UserAgent.ParseAdd("LocalGPT/4.9.4");
-
+            var token = string.IsNullOrWhiteSpace(tokenName) ? null : Environment.GetEnvironmentVariable(tokenName.Trim());
             var client = httpClientFactory.CreateClient("LocalGPTHuggingFace");
-            using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-            var results = new List<HuggingFaceModelSearchResult>();
-            if (document.RootElement.ValueKind != JsonValueKind.Array)
-                return results;
-            foreach (var item in document.RootElement.EnumerateArray())
+            var route = $"https://huggingface.co/api/models?search={Uri.EscapeDataString(query)}&limit={apiLimit}&sort={apiSort}&direction=-1&full=true";
+            var batches = await Task.WhenAll(GetPipelineTags(request.Capability).Select(pipelineTag =>
+                SearchPageAsync(client, route, pipelineTag, token, request.Capability, cancellationToken))).ConfigureAwait(false);
+            var results = batches.SelectMany(batch => batch)
+                .DistinctBy(model => model.ModelId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (results.Count == 0 && query.Length > 0 && request.Capability != LocalAiCapability.Unknown)
             {
-                var modelId = GetString(item, "modelId");
-                if (string.IsNullOrWhiteSpace(modelId))
-                    modelId = GetString(item, "id");
-                if (string.IsNullOrWhiteSpace(modelId))
-                    continue;
-                var tags = item.TryGetProperty("tags", out var tagsNode) && tagsNode.ValueKind == JsonValueKind.Array
-                    ? tagsNode.EnumerateArray().Where(value => value.ValueKind == JsonValueKind.String).Select(value => value.GetString() ?? string.Empty).Where(value => value.Length > 0).ToList()
-                    : [];
-                var pipelineTag = GetString(item, "pipeline_tag");
-                var capabilities = DetectCapabilities(modelId, pipelineTag, tags);
-                if (request.Capability != LocalAiCapability.Unknown && !capabilities.Contains(request.Capability))
-                    continue;
-                results.Add(new HuggingFaceModelSearchResult
-                {
-                    ModelId = modelId,
-                    Author = modelId.Contains('/') ? modelId[..modelId.IndexOf('/')] : string.Empty,
-                    PipelineTag = pipelineTag,
-                    LibraryName = GetString(item, "library_name"),
-                    IsPrivate = GetBoolean(item, "private"),
-                    IsGated = item.TryGetProperty("gated", out var gated) && gated.ValueKind is JsonValueKind.True or JsonValueKind.String,
-                    Downloads = GetInt64(item, "downloads"),
-                    Likes = (int)Math.Min(int.MaxValue, GetInt64(item, "likes")),
-                    LastModifiedUtc = DateTime.TryParse(GetString(item, "lastModified"), out var modified) ? modified.ToUniversalTime() : null,
-                    Tags = tags,
-                    Capabilities = capabilities
-                });
+                // A repository can advertise its capability through tags or its name without setting a pipeline.
+                results = await SearchPageAsync(client, route, null, token, request.Capability, cancellationToken).ConfigureAwait(false);
             }
-            IEnumerable<HuggingFaceModelSearchResult> ordered = results;
+
+            IEnumerable<HuggingFaceModelSearchResult> ordered;
             if (request.Sort == HuggingFaceModelSort.RecentLiked)
             {
                 var cutoff = DateTime.UtcNow.AddDays(-Math.Clamp(request.RecentWindowDays, parameters.MinimumRecentWindowDays, parameters.MaximumRecentWindowDays));
@@ -105,21 +72,89 @@ public sealed class HuggingFaceModelCatalogService(
                 ordered = results.OrderByDescending(item => item.Likes).ThenByDescending(item => item.Downloads);
             else if (request.Sort == HuggingFaceModelSort.Recent)
                 ordered = results.OrderByDescending(item => item.LastModifiedUtc);
+            else
+                ordered = results.OrderByDescending(item => item.Downloads);
 
             var bounded = ordered.Take(limit).ToList();
             logger.LogInformation("Hugging Face metadata search returned {Count} compatible result(s) with sort {Sort}; query text and credentials were omitted from logs.", bounded.Count, request.Sort);
             return bounded;
-    
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogDebug("Hugging Face metadata search was canceled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError("Hugging Face metadata search failed with {ExceptionType}.", exception.GetType().Name);
+            throw;
+        }
     }
-    catch (Exception __serviceMethodException)
+
+    private string?[] GetPipelineTags(LocalAiCapability capability) => capability switch
     {
-        if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(HuggingFaceModelCatalogService)}.{nameof(SearchAsync)} was canceled.");
-        else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(HuggingFaceModelCatalogService)}.{nameof(SearchAsync)} failed.");
-        throw;
+        LocalAiCapability.ImageGeneration => ["text-to-image"],
+        LocalAiCapability.ImageEditing => ["image-to-image"],
+        LocalAiCapability.TextToVideo => ["text-to-video"],
+        LocalAiCapability.ImageToVideo => ["image-to-video"],
+        LocalAiCapability.SpeechRecognition => ["automatic-speech-recognition"],
+        LocalAiCapability.SpeechSynthesis => ["text-to-speech"],
+        LocalAiCapability.AudioGeneration => ["text-to-audio"],
+        LocalAiCapability.ImageUnderstanding => ["image-text-to-text", "visual-question-answering"],
+        LocalAiCapability.VideoUnderstanding => ["video-text-to-text", "video-classification"],
+        LocalAiCapability.Embeddings => ["feature-extraction", "sentence-similarity"],
+        _ => [null]
+    };
+
+    private async Task<List<HuggingFaceModelSearchResult>> SearchPageAsync(
+        HttpClient client, string route, string? pipelineTag, string? token, LocalAiCapability capability,
+        CancellationToken cancellationToken)
+    {
+        using var message = new HttpRequestMessage(HttpMethod.Get, pipelineTag is null
+            ? route
+            : $"{route}&pipeline_tag={Uri.EscapeDataString(pipelineTag)}");
+        if (!string.IsNullOrWhiteSpace(token))
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        message.Headers.UserAgent.ParseAdd("LocalGPT/4.9.4");
+
+        using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var results = new List<HuggingFaceModelSearchResult>();
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+            return results;
+        foreach (var item in document.RootElement.EnumerateArray())
+            {
+                var modelId = GetString(item, "modelId");
+                if (string.IsNullOrWhiteSpace(modelId))
+                    modelId = GetString(item, "id");
+                if (string.IsNullOrWhiteSpace(modelId))
+                    continue;
+                var tags = item.TryGetProperty("tags", out var tagsNode) && tagsNode.ValueKind == JsonValueKind.Array
+                    ? tagsNode.EnumerateArray().Where(value => value.ValueKind == JsonValueKind.String).Select(value => value.GetString() ?? string.Empty).Where(value => value.Length > 0).ToList()
+                    : [];
+                var modelPipelineTag = GetString(item, "pipeline_tag");
+                var capabilities = DetectCapabilities(modelId, modelPipelineTag, tags);
+                if (capability != LocalAiCapability.Unknown && !capabilities.Contains(capability))
+                    continue;
+                results.Add(new HuggingFaceModelSearchResult
+                {
+                    ModelId = modelId,
+                    Author = modelId.Contains('/') ? modelId[..modelId.IndexOf('/')] : string.Empty,
+                    PipelineTag = modelPipelineTag,
+                    LibraryName = GetString(item, "library_name"),
+                    IsPrivate = GetBoolean(item, "private"),
+                    IsGated = item.TryGetProperty("gated", out var gated) && gated.ValueKind is JsonValueKind.True or JsonValueKind.String,
+                    Downloads = GetInt64(item, "downloads"),
+                    Likes = (int)Math.Min(int.MaxValue, GetInt64(item, "likes")),
+                    LastModifiedUtc = DateTime.TryParse(GetString(item, "lastModified"), out var modified) ? modified.ToUniversalTime() : null,
+                    Tags = tags,
+                    Capabilities = capabilities
+                });
+            }
+        return results;
     }
-}
 
     /// <summary>
     /// Performs detect capabilities as part of the hugging face model catalog service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -152,7 +187,7 @@ public sealed class HuggingFaceModelCatalogService(
                 result.Add(LocalAiCapability.ImageUnderstanding);
             if (evidence.Contains("video-text-to-text") || evidence.Contains("video-classification") || evidence.Contains("video-understanding") || evidence.Contains("video-language"))
                 result.Add(LocalAiCapability.VideoUnderstanding);
-            if (evidence.Contains("feature-extraction") || evidence.Contains("sentence-transformers") || evidence.Contains("embedding"))
+            if (evidence.Contains("feature-extraction") || evidence.Contains("sentence-similarity") || evidence.Contains("sentence-transformers") || evidence.Contains("embedding"))
                 result.Add(LocalAiCapability.Embeddings);
             return result.OrderBy(value => value).ToList();
     

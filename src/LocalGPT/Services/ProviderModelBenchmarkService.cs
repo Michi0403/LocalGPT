@@ -136,7 +136,10 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         {
             report.Warnings.Add("No benchmark-capable provider-qualified model was selected.");
             report.CompletedAtUtc = DateTimeOffset.UtcNow;
-            await TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
+            if (request.CollectEvidence is { } collectEvidence)
+                collectEvidence(report);
+            else
+                await TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
             return report;
         }
 
@@ -427,7 +430,10 @@ public sealed partial class ProviderModelBenchmarkService : IProviderModelBenchm
         }
         finally
         {
-            await TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
+            if (request.CollectEvidence is { } collectEvidence)
+                collectEvidence(report);
+            else
+                await TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
             if (request.OwnLiveSession)
                 liveSessions.Complete(report.RunId);
         }

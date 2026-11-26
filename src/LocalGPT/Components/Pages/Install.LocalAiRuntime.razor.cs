@@ -1,5 +1,6 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
+using System.Text.Json;
 
 namespace LocalGPT.Components.Pages
 {
@@ -76,6 +77,11 @@ namespace LocalGPT.Components.Pages
         /// Stores the internal local AI manual capability state used by <see cref="Install"/> while executing its surrounding workflow.
         /// </summary>
         private LocalAiCapability LocalAiManualCapability = LocalAiCapability.Unknown;
+
+        private IEnumerable<LocalAiCapability> LocalAiInstallCapabilityOptions =>
+            LocalAiCapabilityOptions.Where(capability => capability == LocalAiCapability.Unknown || LocalAiRuntime.SupportsModelCapability(capability));
+
+        private LocalAiCapability LocalAiResultCapability;
         /// <summary>
         /// Stores the internal local AI search query state used by <see cref="Install"/> while executing its surrounding workflow.
         /// </summary>
@@ -97,6 +103,32 @@ namespace LocalGPT.Components.Pages
         /// Stores the internal local AI busy state used by <see cref="Install"/> while executing its surrounding workflow.
         /// </summary>
         private bool LocalAiBusy;
+
+        private string? LocalAiOperation;
+
+        private IProgress<string> ShowLocalAiProgress(string operation)
+        {
+            LocalAiOperation = operation;
+            return new Progress<string>(message =>
+            {
+                if (!LocalAiBusy || LocalAiOperation != operation)
+                    return;
+
+                LocalAiStatusText = message;
+                StateHasChanged();
+            });
+        }
+
+        private async Task LoadLocalAiRuntimeStateAsync()
+        {
+            LocalAiStatus = await LocalAiRuntime.GetStatusAsync();
+            PythonTaskRows = PythonJobs.ListJobs(100);
+            LocalAiRuntimePolicy = await LocalAiRuntime.GetRuntimeConfigurationAsync();
+            LocalAiWhisperVariant = LocalAiRuntimePolicy.DefaultWhisperModel;
+            LocalAiPackageProfiles = LocalAiRuntime.GetPackageProfiles();
+            LocalAiInstalledModels = LocalAiRuntime.GetInstalledModels();
+            LocalAiKnownModels = LocalAiAcquisition.GetKnownModels();
+        }
         /// <summary>
         /// Stores the internal local AI trust remote code state used by <see cref="Install"/> while executing its surrounding workflow.
         /// </summary>
@@ -111,18 +143,12 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
-                LocalAiStatus = await LocalAiRuntime.GetStatusAsync().ConfigureAwait(false);
-                PythonTaskRows = PythonJobs.ListJobs(100);
-                LocalAiRuntimePolicy = await LocalAiRuntime.GetRuntimeConfigurationAsync().ConfigureAwait(false);
-                LocalAiWhisperVariant = LocalAiRuntimePolicy.DefaultWhisperModel;
-                LocalAiPackageProfiles = LocalAiRuntime.GetPackageProfiles();
-                LocalAiInstalledModels = LocalAiRuntime.GetInstalledModels();
-                LocalAiKnownModels = LocalAiAcquisition.GetKnownModels();
-                LocalAiStatusText = LocalAiStatus.Message;
+                await LoadLocalAiRuntimeStateAsync();
             }
             catch (Exception exception)
             {
                 Logger.LogError("Refreshing the Local AI runtime workbench failed with {ExceptionType}; exception text and runtime paths were omitted from logs.", exception.GetType().Name);
+                LocalAiOperation = null;
                 LocalAiStatusText = "Local AI runtime status could not be loaded. Review LocalGPT logs.";
             }
             finally
@@ -189,6 +215,7 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
+                LocalAiOperation = "environment";
                 LocalAiStatusText = "Discovering Python runtimes from LocalGPT toolchain knowledge...";
                 LocalAiPythonCandidates = await LocalAiRuntime.DiscoverPythonAsync().ConfigureAwait(false);
                 LocalAiStatusText = LocalAiPythonCandidates.Count == 0
@@ -217,9 +244,11 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
-                await LocalAiRuntime.ConfigurePythonAsync(candidate).ConfigureAwait(false);
+                LocalAiOperation = "environment";
+                LocalAiStatusText = "Saving the Python runtime binding...";
+                await LocalAiRuntime.ConfigurePythonAsync(candidate);
+                await LoadLocalAiRuntimeStateAsync();
                 LocalAiStatusText = "Python runtime binding saved. Create the managed environment next. If Python.NET was already initialized with another runtime, restart LocalGPT before executing jobs.";
-                await RefreshLocalAiRuntimeAsync().ConfigureAwait(false);
             }
             catch (Exception exception)
             {
@@ -242,10 +271,11 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
+                var progress = ShowLocalAiProgress("environment");
                 LocalAiStatusText = "Creating the managed Python environment and installing the reviewed core profile...";
-                await LocalAiRuntime.CreateManagedEnvironmentAsync(userConfirmed: true).ConfigureAwait(false);
+                await LocalAiRuntime.CreateManagedEnvironmentAsync(userConfirmed: true, progress: progress);
+                await LoadLocalAiRuntimeStateAsync();
                 LocalAiStatusText = "Managed Python environment created. Install the PyTorch backend appropriate for this machine, then the image/video/speech profiles you need.";
-                await RefreshLocalAiRuntimeAsync().ConfigureAwait(false);
             }
             catch (Exception exception)
             {
@@ -269,10 +299,13 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
+                var progress = ShowLocalAiProgress($"package:{profileKey}");
                 LocalAiStatusText = $"Installing Python package profile {profileKey}...";
-                await LocalAiRuntime.InstallPackageProfileAsync(profileKey, userConfirmed: true).ConfigureAwait(false);
-                LocalAiStatusText = $"Python package profile {profileKey} installed.";
-                await RefreshLocalAiRuntimeAsync().ConfigureAwait(false);
+                await LocalAiRuntime.InstallPackageProfileAsync(profileKey, userConfirmed: true, progress: progress);
+                await LoadLocalAiRuntimeStateAsync();
+                LocalAiStatusText = LocalAiStatus?.RestartRequired == true
+                    ? $"Python package profile {profileKey} installed. Restart LocalGPT before using it."
+                    : $"Python package profile {profileKey} installed.";
             }
             catch (Exception exception)
             {
@@ -283,6 +316,50 @@ namespace LocalGPT.Components.Pages
             {
                 LocalAiBusy = false;
                 await InvokeAsync(StateHasChanged).ConfigureAwait(false);
+            }
+        }
+
+        private string? TrainingInterpreter;
+        private string? TrainingBackend;
+        private string? TrainingNextStep;
+
+        private async Task CheckLocalAiTrainingAsync(bool prepare)
+        {
+            if (LocalAiBusy)
+                return;
+
+            try
+            {
+                LocalAiBusy = true;
+                var progress = ShowLocalAiProgress("training");
+                LocalAiStatusText = prepare ? "Preparing LoRA training…" : "Checking LoRA training readiness…";
+                TrainingInterpreter = TrainingBackend = TrainingNextStep = null;
+                var result = prepare
+                    ? await ModelTraining.PrepareAsync(userConfirmed: true, progress)
+                    : await ModelTraining.ProbeAsync(null, null);
+                if (prepare)
+                    await LoadLocalAiRuntimeStateAsync();
+                using var document = JsonDocument.Parse(result);
+                var probe = document.RootElement;
+                var readiness = probe.GetProperty("training_readiness");
+                TrainingInterpreter = $"{probe.GetProperty("python_source").GetString()} · {probe.GetProperty("python_executable").GetString()}";
+                TrainingBackend = probe.GetProperty("backend").GetString();
+                var ready = readiness.GetProperty("ready").GetBoolean();
+                LocalAiStatusText = ready ? "LoRA training APIs are available." : readiness.GetProperty("problem").GetString();
+                if (readiness.TryGetProperty("remedy", out var remedy))
+                    TrainingNextStep = remedy.GetString();
+                else if (TrainingBackend == "cpu")
+                    TrainingNextStep = "Only CPU training is available. The training configuration must explicitly allow CPU, or install the PyTorch build for your GPU.";
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning("Checking LoRA readiness failed with {ExceptionType}.", exception.GetType().Name);
+                LocalAiStatusText = exception.Message;
+            }
+            finally
+            {
+                LocalAiBusy = false;
+                await InvokeAsync(StateHasChanged);
             }
         }
 
@@ -345,6 +422,7 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
+                LocalAiOperation = $"source:{sourceKey}";
                 LocalAiStatusText = "Downloading reviewed upstream AI source directly over HTTPS...";
                 var result = await LocalAiAcquisition.DownloadSourceAsync(sourceKey, userConfirmed: true).ConfigureAwait(false);
                 LocalAiStatusText = $"Reviewed source downloaded: {result.Bytes:N0} bytes, SHA-256 {result.Sha256}.";
@@ -371,13 +449,14 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
+                var progress = ShowLocalAiProgress($"source:{sourceKey}");
                 LocalAiStatusText = "Installing reviewed upstream source and real model weights through the managed Python environment...";
                 await LocalAiAcquisition.InstallKnownModelAsync(new LocalAiKnownModelInstallRequest
                 {
                     SourceKey = sourceKey,
                     Variant = sourceKey.Equals("openai-whisper", StringComparison.OrdinalIgnoreCase) ? LocalAiWhisperVariant : string.Empty,
                     UserConfirmed = true
-                }).ConfigureAwait(false);
+                }, progress: progress);
                 LocalAiInstalledModels = LocalAiRuntime.GetInstalledModels();
                 LocalAiStatusText = "Known local-AI model installed and registered for its bounded DXFunction capability.";
             }
@@ -402,15 +481,20 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
+                LocalAiOperation = "hub";
+                LocalAiSearchResults = [];
+                LocalAiResultCapability = LocalAiSearchCapability;
                 LocalAiStatusText = "Searching Hugging Face model metadata...";
                 LocalAiSearchResults = await HuggingFaceCatalog.SearchAsync(new HuggingFaceModelSearchRequest
                 {
                     Query = LocalAiSearchQuery,
-                    Capability = LocalAiSearchCapability,
+                    Capability = LocalAiResultCapability,
                     Limit = 24,
                     Sort = LocalAiSearchSort
                 }).ConfigureAwait(false);
-                LocalAiStatusText = $"Found {LocalAiSearchResults.Count} compatible model metadata result(s). Search does not download or execute repository code.";
+                LocalAiStatusText = LocalAiSearchResults.Count == 0
+                    ? "No models match this search. Try a different name or capability."
+                    : $"Found {LocalAiSearchResults.Count} model metadata results.";
             }
             catch (Exception exception)
             {
@@ -434,17 +518,22 @@ namespace LocalGPT.Components.Pages
             try
             {
                 LocalAiBusy = true;
+                LocalAiOperation = "hub";
+                LocalAiSearchResults = [];
+                LocalAiResultCapability = LocalAiSearchCapability;
                 LocalAiSearchSort = HuggingFaceModelSort.RecentLiked;
                 LocalAiStatusText = "Loading recently updated, highly liked Hugging Face models in the selected capability category...";
                 LocalAiSearchResults = await HuggingFaceCatalog.SearchAsync(new HuggingFaceModelSearchRequest
                 {
                     Query = LocalAiSearchQuery,
-                    Capability = LocalAiSearchCapability,
+                    Capability = LocalAiResultCapability,
                     Limit = 24,
                     Sort = HuggingFaceModelSort.RecentLiked,
                     RecentWindowDays = 30
                 }).ConfigureAwait(false);
-                LocalAiStatusText = $"Loaded {LocalAiSearchResults.Count} recent/liked model result(s) for the selected category.";
+                LocalAiStatusText = LocalAiSearchResults.Count == 0
+                    ? "No recent or liked models match this search."
+                    : $"Loaded {LocalAiSearchResults.Count} model metadata results.";
             }
             catch (Exception exception)
             {
@@ -465,24 +554,23 @@ namespace LocalGPT.Components.Pages
         /// <returns>A task that completes when the operation has finished.</returns>
         private async Task InstallHuggingFaceModelAsync(HuggingFaceModelSearchResult model)
         {
+            var capabilities = GetLocalAiInstallCapabilities(model);
+            if (LocalAiBusy || LocalAiStatus?.VirtualEnvironmentExists != true || capabilities.Count == 0)
+                return;
+
             try
             {
                 LocalAiBusy = true;
-                LocalAiStatusText = "Installing the reviewed model snapshot. Large models can take a while; LocalGPT will not execute repository setup scripts.";
-                var capabilities = model.Capabilities
-                    .Where(value => value != LocalAiCapability.Unknown && LocalAiCapabilityOptions.Contains(value))
-                    .Distinct()
-                    .ToList();
-                if (LocalAiManualCapability != LocalAiCapability.Unknown && !capabilities.Contains(LocalAiManualCapability))
-                    capabilities.Add(LocalAiManualCapability);
+                var progress = ShowLocalAiProgress("hub");
+                LocalAiStatusText = $"Starting snapshot installation for {model.ModelId}...";
                 await LocalAiRuntime.InstallModelAsync(new LocalAiModelInstallRequest
                 {
                     ModelId = model.ModelId,
                     Revision = model.Revision,
-                    Capabilities = capabilities,
+                    Capabilities = capabilities.ToList(),
                     TrustRemoteCode = LocalAiTrustRemoteCode,
                     RequiresAuthentication = model.IsPrivate || model.IsGated
-                }, userConfirmed: true).ConfigureAwait(false);
+                }, userConfirmed: true, progress: progress);
                 LocalAiInstalledModels = LocalAiRuntime.GetInstalledModels();
                 LocalAiStatusText = "Model snapshot installed and registered in the specialized capability inventory.";
             }
@@ -529,17 +617,15 @@ namespace LocalGPT.Components.Pages
         /// </summary>
         /// <param name="model">Model value supplied to the install operation and used when producing its result.</param>
         /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
-        private bool CanInstallLocalAiModel(HuggingFaceModelSearchResult model)
+        private IReadOnlyList<LocalAiCapability> GetLocalAiInstallCapabilities(HuggingFaceModelSearchResult model)
         {
-            try
-            {
-                return LocalAiManualCapability != LocalAiCapability.Unknown || model.Capabilities.Any(value => LocalAiCapabilityOptions.Contains(value) && value != LocalAiCapability.Unknown);
-            }
-            catch (Exception __componentMethodException)
-            {
-                Logger.LogError(__componentMethodException, "Component method Install.LocalAiRuntime.CanInstallLocalAiModel failed.");
-                throw;
-            }
+            if (LocalAiRuntime.SupportsModelCapability(LocalAiManualCapability))
+                return [LocalAiManualCapability];
+
+            if (LocalAiRuntime.SupportsModelCapability(LocalAiResultCapability) && model.Capabilities.Contains(LocalAiResultCapability))
+                return [LocalAiResultCapability];
+
+            return model.Capabilities.Where(LocalAiRuntime.SupportsModelCapability).Distinct().ToArray();
         }
 
     }

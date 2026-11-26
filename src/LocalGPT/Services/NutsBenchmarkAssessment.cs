@@ -61,7 +61,8 @@ public sealed class NutsBenchmarkAssessment(
         {
             Name = scenarioCase.Name.Trim(),
             Prompt = $"{scenarioCase.Prompt.Trim()}\n\nReturn one JSON object without Markdown or surrounding prose.",
-            ExpectJson = true
+            ExpectJson = true,
+            ExpectedJson = scenarioCase.Expected
         }).ToList();
     }
 
@@ -85,9 +86,9 @@ public sealed class NutsBenchmarkAssessment(
                 foreach (var item in role)
                 {
                     var name = item.Name.Trim();
-                    if (!results.TryGetValue(name, out var result) || !string.IsNullOrEmpty(result.Error) || result.ResponseTextTruncated)
+                    if (!results.TryGetValue(name, out var result) || !string.IsNullOrEmpty(result.Error))
                         unmeasured.Add(name);
-                    else if (Matches(result.ResponseText, item.Expected))
+                    else if (result.NutsAnswerCorrect == true)
                     {
                         passed++;
                         durationMilliseconds += result.TotalMilliseconds;
@@ -232,19 +233,40 @@ public sealed class NutsBenchmarkAssessment(
             && role.HumanParticipationMode != HumanParticipationMode.HumanOnly
             && !role.AssignedModelKeys.Contains(model, StringComparer.OrdinalIgnoreCase));
 
-    internal async Task SaveRoleDefaultAsync(string teamKey, string roleName, string modelKey, CancellationToken cancellationToken,
+    internal async Task<OrganicCouncilTeamDefinition> SaveRoleDefaultAsync(string teamKey, string roleName, string modelKey, CancellationToken cancellationToken,
         string reviewedAdapterDigest = "")
     {
         try
         {
             var team = await teams.FindTeamAsync(teamKey, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException("The recommended team is unavailable.");
+            string? approvedSeedCopyKey = null;
+            if (team.IsSystemSeed && reviewedAdapterDigest.Length != 0)
+            {
+                var identity = JsonSerializer.SerializeToUtf8Bytes(new[] { team.Key, roleName, modelKey, reviewedAdapterDigest });
+                approvedSeedCopyKey = $"{team.Key}-adapter-{Convert.ToHexStringLower(SHA256.HashData(identity))[..16]}";
+                var existingCopy = await teams.FindTeamAsync(approvedSeedCopyKey, cancellationToken).ConfigureAwait(false);
+                if (existingCopy is not null)
+                {
+                    if (HasReviewedRole(existingCopy, roleName, modelKey, reviewedAdapterDigest))
+                        return existingCopy;
+                    throw new InvalidOperationException($"The user-owned Council team '{existingCopy.DisplayName}' ({existingCopy.Key}) already exists with different settings. Review that team before assigning the adapter again.");
+                }
+            }
+            if (HasReviewedRole(team, roleName, modelKey, reviewedAdapterDigest))
+                return team;
             var role = FindUnassignedRole(team, roleName);
             if (role is null)
                 throw new InvalidOperationException("The role already has a selection policy or is unavailable.");
 
             SetRoleDefault(role, modelKey, reviewedAdapterDigest);
-            await SaveTeamAsync(team, cancellationToken).ConfigureAwait(false);
+            return await teams.SaveAsync(new SaveCouncilTeamConfigurationRequest
+            {
+                Team = team,
+                IsEnabled = team.IsEnabled,
+                UserConfirmed = true,
+                ApprovedSeedCopyKey = approvedSeedCopyKey
+            }, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException exception)
         {
@@ -257,6 +279,14 @@ public sealed class NutsBenchmarkAssessment(
             throw;
         }
     }
+
+    private bool HasReviewedRole(OrganicCouncilTeamDefinition team, string roleName, string modelKey, string digest)
+        => team.Roles.Any(role => role.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase)
+            && role.HumanParticipationMode != HumanParticipationMode.HumanOnly
+            && role.AiSelectionMode == CouncilRoleAiSelectionMode.AssignedModels
+            && role.AssignedModelKeys.Contains(modelKey, StringComparer.OrdinalIgnoreCase)
+            && role.ReviewedAdapterModelKey.Equals(modelKey, StringComparison.OrdinalIgnoreCase)
+            && role.ReviewedAdapterDigest.Equals(digest, StringComparison.OrdinalIgnoreCase));
 
     private OrganicCouncilRoleDefinition? FindUnassignedRole(OrganicCouncilTeamDefinition team, string roleName)
         => team.Roles.SingleOrDefault(role => role.Role.Equals(roleName, StringComparison.OrdinalIgnoreCase)
@@ -283,7 +313,7 @@ public sealed class NutsBenchmarkAssessment(
         return saved.Key;
     }
 
-    private bool Matches(string response, Dictionary<string, JsonElement> expected)
+    internal (bool FormatValid, bool Correct) AssessAnswer(string response, IReadOnlyDictionary<string, JsonElement> expected)
     {
         try
         {
@@ -292,22 +322,23 @@ public sealed class NutsBenchmarkAssessment(
             {
                 var firstLine = normalized.IndexOf('\n');
                 if (firstLine < 0 || firstLine >= normalized.Length - 3)
-                    return false;
+                    return (false, false);
                 var fenceLanguage = normalized[3..firstLine].Trim();
                 if (fenceLanguage.Length != 0 && !fenceLanguage.Equals("json", StringComparison.OrdinalIgnoreCase))
-                    return false;
+                    return (false, false);
                 normalized = normalized[(firstLine + 1)..^3].Trim();
             }
             using var document = JsonDocument.Parse(normalized);
             var answer = document.RootElement;
-            return answer.ValueKind == JsonValueKind.Object
+            var formatValid = answer.ValueKind == JsonValueKind.Object
                 && answer.EnumerateObject().Select(property => property.Name).Distinct(StringComparer.Ordinal).Count()
-                    == answer.EnumerateObject().Count()
-                && expected.All(pair => answer.TryGetProperty(pair.Key, out var value) && JsonElement.DeepEquals(value, pair.Value));
+                    == answer.EnumerateObject().Count();
+            return (formatValid, formatValid && expected.All(pair =>
+                answer.TryGetProperty(pair.Key, out var value) && JsonElement.DeepEquals(value, pair.Value)));
         }
         catch (JsonException)
         {
-            return false;
+            return (false, false);
         }
     }
 }

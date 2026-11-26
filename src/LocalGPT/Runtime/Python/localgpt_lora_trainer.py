@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import importlib.util
+import inspect
 import json
 import math
 import os
@@ -420,8 +421,9 @@ def _problems(env: dict) -> list[dict]:
 
 def estimate_memory(parameters_billions: float, lora_rank: int, tokens_per_step: int | None = None,
                     gradient_checkpointing: bool = True, vocab_size: int | None = None,
-                    unified_memory: bool = False) -> dict:
-    """Estimated memory need in MiB for 16-bit LoRA and 4-bit QLoRA. Formula: see module docstring."""
+                    unified_memory: bool = False, checkpoint_bytes: int | None = None,
+                    checkpoint_is_quantized: bool = False, checkpoint_compute_bytes: int = 4) -> dict:
+    """Estimated memory need in MiB for FP32 LoRA, 16-bit LoRA and 4-bit QLoRA."""
     e = ESTIMATOR
     n = parameters_billions * 1e9
     tokens = tokens_per_step if tokens_per_step else e["reference_tokens"]
@@ -434,13 +436,19 @@ def estimate_memory(parameters_billions: float, lora_rank: int, tokens_per_step:
     factor = e["unified_memory_factor"] if unified_memory else 1.0
     w16 = e["bytes_per_param_16bit"] * n
     w4 = e["bytes_per_param_4bit"] * n
-    return {
+    estimates = {
+        "lora_fp32_mib": int(math.ceil((w16 * 2 + opt + act * 2 + logits + overhead) * factor / MIB)),
         "lora_16bit_mib": int(math.ceil((w16 + opt + act + logits + overhead) * factor / MIB)),
         "qlora_4bit_mib": int(math.ceil((w4 + opt + act + logits + overhead + e["dequant_workspace_gib"] * GIB) * factor / MIB)),
         "assumed_tokens_per_step": tokens,
         "assumed_gradient_checkpointing": gradient_checkpointing,
         "assumed_vocab_size": vocab_size or e["assumed_vocab_size"],
     }
+    if checkpoint_bytes is not None:
+        workspace = e["dequant_workspace_gib"] * GIB if checkpoint_is_quantized else 0
+        checkpoint_total = checkpoint_bytes + opt + act * (checkpoint_compute_bytes / 2) + logits + overhead + workspace
+        estimates["checkpoint_mib"] = int(math.ceil(checkpoint_total * factor / MIB))
+    return estimates
 
 
 def verdict(need_mib: int, available_mib: int | None) -> str:
@@ -455,28 +463,83 @@ def estimate_report(env: dict, backend: str, parameters_billions: float, lora_ra
     det = env["detail"].get(backend, {})
     est = estimate_memory(parameters_billions, lora_rank, unified_memory=backend in ("mps", "mlx"), **kw)
     avail = det.get("usable_mib")
-    return {
+    report = {
         "parameters_billions": parameters_billions, "lora_rank": lora_rank, "backend": backend,
         "available_mib": avail, "available_basis": det.get("usable_basis"),
         "assumptions": {k: est[k] for k in ("assumed_tokens_per_step", "assumed_gradient_checkpointing", "assumed_vocab_size")},
+        "lora_fp32": {"need_mib": est["lora_fp32_mib"], "verdict": verdict(est["lora_fp32_mib"], avail), "available": True},
         "lora_16bit": {"need_mib": est["lora_16bit_mib"], "verdict": verdict(est["lora_16bit_mib"], avail), "available": True},
         "qlora_4bit": {"need_mib": est["qlora_4bit_mib"], "verdict": verdict(est["qlora_4bit_mib"], avail),
                        "available": bool(env["four_bit_available"] and backend == "cuda-nvidia")},
     }
+    if "checkpoint_mib" in est:
+        need = est["checkpoint_mib"]
+        report["checkpoint"] = {"need_mib": need, "verdict": verdict(need, avail), "available": True}
+    return report
 
 
 # --------------------------------------------------------------------------- probe
 
+def verify_training_api(backend: str) -> dict:
+    command = "Prepare LoRA training under /install → Local AI runtimes."
+    target = "MLX LoRA CLI" if backend == "mlx" else "PyTorch"
+    try:
+        if backend == "mlx":
+            importlib.import_module("mlx.core")
+            result = subprocess.run([sys.executable, "-m", "mlx_lm.lora", "--help"],
+                                    capture_output=True, text=True, timeout=30, check=True)
+            missing = [flag for flag in ("--train", "--data", "--fine-tune-type", "--adapter-path",
+                       "--iters", "--max-seq-length", "--save-every", "--val-batches",
+                       "--grad-accumulation-steps", "--mask-prompt", "--grad-checkpoint")
+                       if flag not in result.stdout]
+            if missing:
+                return {"ready": False, "problem": "Unsupported MLX CLI options: " + ", ".join(missing), "remedy": command}
+        else:
+            importlib.import_module("torch")
+            target = "Accelerate"
+            importlib.import_module("accelerate")
+            target = "Datasets"
+            from datasets import load_dataset
+            target = "Transformers"
+            from transformers import AutoModelForCausalLM, AutoTokenizer, TrainerCallback
+            target = "PEFT"
+            from peft import LoraConfig, prepare_model_for_kbit_training
+            target = "TRL"
+            from trl import SFTConfig, SFTTrainer
+            required = ((SFTConfig, ("completion_only_loss", "max_length", "eval_strategy", "use_cpu")),
+                        (SFTTrainer, ("processing_class", "peft_config", "eval_dataset")))
+            for function, parameters in required:
+                signature = inspect.signature(function).parameters
+                missing = [parameter for parameter in parameters if parameter not in signature]
+                if missing:
+                    return {"ready": False, "problem": f"{function.__name__} is missing " + ", ".join(missing), "remedy": command}
+    except Exception as error:
+        missing_module = error.name if isinstance(error, ModuleNotFoundError) else None
+        problem = f"{target} could not load ({type(error).__name__}"
+        if missing_module:
+            problem += f", missing {missing_module}"
+        return {"ready": False, "problem": problem + ").", "remedy": command}
+    return {"ready": True}
+
+
 def cmd_probe(args: argparse.Namespace) -> int:
     env = detect()
-    backend = env["backend"]
+    backend = args.backend or env["backend"]
     det = env["detail"].get(backend, {})
+    # Some third-party imports print warnings to stdout. Keep the probe JSON-only.
+    from contextlib import redirect_stdout
+    with redirect_stdout(sys.stderr):
+        readiness = verify_training_api(backend)
+    if backend not in env["available_backends"] and readiness["ready"]:
+        readiness = {"ready": False, "problem": f"The {backend} device is unavailable to this interpreter.",
+                     "remedy": "Use a native interpreter and a backend build supported by this machine, then check readiness again."}
     report: dict[str, Any] = {
         "event": "probe",
         **{k: env["facts"][k] for k in ("os", "os_release", "os_version", "machine", "python", "python_executable")},
         "platform": {k: env["facts"][k] for k in ("is_windows_native", "is_wsl", "is_macos", "is_apple_silicon", "is_steam_deck")},
         "packages": env["packages"], "torch_build": env["torch_info"], "gpus_seen": env["gpus"],
         "backend": backend, "available_backends": env["available_backends"],
+        "training_readiness": readiness,
         "device_name": det.get("device_name"),
         "memory_total_mib": det.get("total_mib"), "memory_free_mib": det.get("free_mib"),
         "memory_usable_mib": det.get("usable_mib"), "memory_usable_basis": det.get("usable_basis"),
@@ -603,8 +666,8 @@ def validate_paths(cfg: dict) -> dict:
     return {"shards": shards, "train_examples": train_n, "eval_examples": eval_n}
 
 
-def count_parameters(shards: list[Path], mlx_quantization: dict | None = None) -> int:
-    """Count logical weights, expanding MLX's uint32-packed matrices without loading them."""
+def inspect_weights(shards: list[Path], mlx_quantization: dict | None = None) -> tuple[int, int, bool, int]:
+    """Read logical parameter count and resident weight sizes directly from safetensors headers."""
     total = 0
     tensors = {}
     for shard in shards:
@@ -632,7 +695,11 @@ def count_parameters(shards: list[Path], mlx_quantization: dict | None = None) -
     for name, meta in tensors.items():
         if name not in auxiliary:
             total += packed_counts.get(name, math.prod(meta["shape"]))
-    return total
+    stored_bytes = sum(meta["data_offsets"][1] - meta["data_offsets"][0] for meta in tensors.values())
+    float_widths = {"F16": 2, "BF16": 2, "F32": 4, "F64": 8}
+    compute_width = max((float_widths[meta["dtype"]] for meta in tensors.values()
+                         if meta["dtype"] in float_widths), default=4)
+    return total, stored_bytes, bool(packed_counts), compute_width
 
 
 def vocab_size_of(base: Path) -> int | None:
@@ -916,15 +983,23 @@ def cmd_train(args: argparse.Namespace) -> int:
     mlx_quantization = model_config.get("quantization") if isinstance(model_config, dict) else None
     if not isinstance(mlx_quantization, dict):
         mlx_quantization = None
-    mlx_four = bool(mlx_quantization and mlx_quantization.get("bits") == 4)
-    params = count_parameters(info["shards"], mlx_quantization)
+    params, stored_bytes, mlx_packed, compute_width = inspect_weights(info["shards"], mlx_quantization)
     est = estimate_report(
         env, backend, params / 1e9, cfg["lora_rank"],
         tokens_per_step=cfg["batch_size"] * cfg["max_sequence_length"],
-        gradient_checkpointing=cfg["gradient_checkpointing"], vocab_size=vocab_size_of(model_path))
-    chosen = est["qlora_4bit" if four or mlx_four else "lora_16bit"]
+        gradient_checkpointing=cfg["gradient_checkpointing"], vocab_size=vocab_size_of(model_path),
+        checkpoint_bytes=stored_bytes if backend == "mlx" else None,
+        checkpoint_is_quantized=mlx_packed, checkpoint_compute_bytes=compute_width)
+    if backend == "mlx":
+        chosen = est["checkpoint"]
+    elif four:
+        chosen = est["qlora_4bit"]
+    elif precision == "fp32":
+        chosen = est["lora_fp32"]
+    else:
+        chosen = est["lora_16bit"]
     emit("preflight", backend=backend, device_name=env["detail"][backend]["device_name"], precision=precision,
-         quantization=cfg["quantization"], prequantized_mlx=mlx_four, parameters_billions=round(params / 1e9, 4),
+         quantization=cfg["quantization"], prequantized_mlx=mlx_packed, parameters_billions=round(params / 1e9, 4),
          estimated_need_mib=chosen["need_mib"], available_mib=est["available_mib"], verdict=chosen["verdict"],
          train_examples=info["train_examples"], eval_examples=info["eval_examples"])
     if chosen["verdict"] == "does-not-fit" and not cfg.get("force", False):
@@ -963,6 +1038,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="LocalGPT hardware-portable offline LoRA trainer")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("probe", help="describe this machine as one JSON object")
+    p.add_argument("--backend", choices=["cuda-nvidia", "rocm", "mps", "mlx", "cpu"])
     p.add_argument("--parameters-billions", type=float)
     p.add_argument("--lora-rank", type=int)
     p.add_argument("--tokens-per-step", type=int)

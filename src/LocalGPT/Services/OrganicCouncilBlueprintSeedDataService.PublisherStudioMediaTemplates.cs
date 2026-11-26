@@ -19,6 +19,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 "video" => "If the video workflow is ambiguous, ask whether to generate a new video or edit existing footage in PublisherStudio Video Studio.",
                 _ => "If the audio workflow is ambiguous, ask whether to generate new audio or edit an existing track in PublisherStudio Audio Studio."
             };
+            const string sourceEditInstruction = "An explicit request to trim, cut or edit supplied media already selects editing. Use the connected PublisherStudio capability teaching and the attached workspace. Do not probe model inventories, hardware, Python or generators for this edit.";
             var preferred = new List<string>
             {
                 "localai.runtime.status", "localai.runtime.configuration", "toolchain.discover", "localai.models.installed",
@@ -49,6 +50,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 ArchitectureContracts =
                 [
                     choiceInstruction,
+                    sourceEditInstruction,
                     "Determine whether the user made a choice from their own messages. A Council step's recommendation or a generic request to create media does not select a workflow.",
                     "If a choice is still needed, ask in the user-visible response and stop before generation, editor input or model setup. If the user already chose a path, use it. If export is requested, use the currently advertised formats and ask for the target only when required.",
                     "Use localai.models.installed as the source for specialized generator availability and installation IDs. Ollama chat, vision analysis and OCR inventories cannot establish image or video generation capability. Use LocalGPT's Local AI setup for specialized model suggestions or installation.",
@@ -61,12 +63,14 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 ],
                 WorkflowSteps =
                 [
-                    Step($"{category}-readiness", "Verify generation readiness", 10, "Discovery", "Provider readiness reviewer",
-                        $"{choiceInstruction} If the user chose model generation, call localai.models.installed and match the requested generation capability. Use the verified installation ID for generation. If the inventory was unavailable, report that it could not be checked. If there is no match, offer LocalGPT's Local AI setup or a separately approved initial.setup.canirun.recommendations lookup. When the user has yet to choose, return the choice question without probing or preparing installs. User task: {{{{UserPrompt}}}}",
-                        "LeaderSingle", canUseOrganicFunctions: true),
+                    Step($"{category}-readiness", "Identify the media workflow", 10, "Discovery", "Provider readiness reviewer",
+                        $"{sourceEditInstruction} For an edit, pass the source, requested change and matching advertised capability to the author in one short note. Leave the edit itself to the author. {choiceInstruction} Only for model generation call localai.models.installed and match the requested generation capability. Use the verified installation ID for generation. If the inventory was unavailable, say so. If there is no match, offer LocalGPT's Local AI setup or a separately approved initial.setup.canirun.recommendations lookup. If no workflow was chosen, return the choice question without tools. User task: {{{{UserPrompt}}}}",
+                        "LeaderSingle", canUseOrganicFunctions: true,
+                        allowedAutomaticFunctions: ["localai.models.installed"]),
                     Step($"{category}-authoring", "Create or plan approved media", 20, "Execution", "Media author",
-                        "If the user still needs to choose, carry the question into the final answer and perform no media action. After the user selects a workflow, invoke only advertised authorized generation (localai.image.generate/localai.video.generate where supported) or PublisherStudio editing operations. Use native media timelines and browser/1-Wire commands when they suffice, avoiding expensive analysis for simple trims/cuts. No autonomous installs or unapproved network calls. Report the exact returned artifacts and receipts, or provide a reviewable work plan with model readiness still pending. Task: {{UserPrompt}}\nEvidence: {{Transcript}}",
-                        "LeaderSingle", canUseOrganicFunctions: true),
+                        "If the workflow is ambiguous, ask the choice question and stop. For an explicit cut or trim of a Chat attachment, invoke the connected PublisherStudio operation whose advertised schema accepts the requested range and returns the resulting file. Call organic.plugin.invoke with the advertised peer and capability, the original workspaceName and fileName in attachment, and timestamps in payload according to that schema. Leave optional fields absent unless the user needs them. Let LocalGPT show its approval card. If the result already contains a download, report it and stop issuing actions. Use an editor session only when the selected operation requires one. For generation use the requested available generator, localai.image.generate or localai.video.generate where supported. Report the actual file, pending approval or actionable blocker. Task: {{UserPrompt}}\nEvidence: {{Transcript}}",
+                        "LeaderSingle", canUseOrganicFunctions: true, waitForDeferredApprovalsBeforeNextStep: true,
+                        allowedAutomaticFunctions: ["organic.plugin.work.read"]),
                     Step($"{category}-verify", "Review output and handoff", 30, "Review", "Result reviewer",
                         $"Recheck the user's task for an explicit workflow selection before reviewing results. {choiceInstruction} If there is no selection, answer with the choice question even if the transcript contains guesses about installed models. Otherwise identify produced files/receipts and supported PublisherStudio insertion steps. State outstanding approval or compatibility gaps. Task: {{{{UserPrompt}}}}\nTranscript: {{{{Transcript}}}}",
                         "LeaderSingle", producesFinalAnswer: true)

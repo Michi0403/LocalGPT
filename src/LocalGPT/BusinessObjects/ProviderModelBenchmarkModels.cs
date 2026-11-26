@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace LocalGPT.BusinessObjects;
@@ -49,6 +50,8 @@ public sealed class ProviderModelBenchmarkTaskDefinition
     /// <summary>Gets or sets whether a generic capability refusal should receive one bounded corrective retry.</summary>
     /// <value><see langword="true"/> only for trusted maintained benchmark assignments that are known to be solvable as text/reasoning work.</value>
     public bool EnforceRoleExecution { get; set; }
+
+    internal IReadOnlyDictionary<string, JsonElement>? ExpectedJson { get; init; }
 }
 
 /// <summary>
@@ -161,6 +164,9 @@ public sealed class ProviderModelBenchmarkRequest
     /// <summary>Gets or sets whether this benchmark owns a standalone live-session entry. Embedded Council calibration sets this to false so the parent Council remains authoritative.</summary>
     /// <value><see langword="true"/> for the historical standalone benchmark behavior; otherwise the caller owns live-session presentation and cancellation.</value>
     public bool OwnLiveSession { get; set; } = true;
+
+    // Embedded workers forward their evidence to the owner of the shared run archive.
+    internal Action<ProviderModelBenchmarkReport>? CollectEvidence { get; init; }
 
     /// <summary>Gets or sets an optional user-visible progress callback used when the benchmark is embedded inside another supervised workflow.</summary>
     /// <value>The progress callback, or null when only the benchmark's own live session should receive progress.</value>
@@ -409,6 +415,12 @@ public sealed class ProviderModelBenchmarkProfileResult
 /// </summary>
 public sealed class ProviderModelBenchmarkTaskResult
 {
+    /// <summary>Whether a completed NUTS response contained a single JSON object with unique keys. Null when unmeasured or outside a NUTS scenario.</summary>
+    public bool? NutsResponseFormatValid { get; set; }
+
+    /// <summary>Whether a completed NUTS response matched the scenario answer key. Null when unmeasured or outside a NUTS scenario.</summary>
+    public bool? NutsAnswerCorrect { get; set; }
+
     /// <summary>
     /// Gets or sets the task name value that forms part of the provider model benchmark task state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -522,6 +534,12 @@ public sealed class ProviderModelBenchmarkEvidenceArchive
 /// </summary>
 public sealed class ProviderModelBenchmarkTaskEvidenceArchive
 {
+    /// <summary>Records the NUTS response format assessment when a scenario response completed.</summary>
+    public bool? NutsResponseFormatValid { get; set; }
+
+    /// <summary>Records the NUTS answer-key assessment when a scenario response completed.</summary>
+    public bool? NutsAnswerCorrect { get; set; }
+
     /// <summary>
     /// Gets or sets the schema version value that forms part of the provider model benchmark task evidence archive state consumed or produced by the surrounding workflow.
     /// </summary>

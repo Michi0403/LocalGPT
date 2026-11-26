@@ -536,6 +536,8 @@ public sealed class CouncilTeamConfiguration
 [DocumentationUpdated("2.1.20")]
 public sealed class SaveCouncilTeamConfigurationRequest
 {
+    internal string? ApprovedSeedCopyKey { get; init; }
+
     /// <summary>
     /// Gets or sets the team value that forms part of the save council team configuration state consumed or produced by the surrounding workflow.
     /// </summary>

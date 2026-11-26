@@ -15,6 +15,13 @@ public interface IModelTrainingService
     /// <returns>The JSON object printed by the trainer probe.</returns>
     Task<string> ProbeAsync(double? parametersBillions, int? loraRank, CancellationToken cancellationToken = default);
 
+    /// <summary>Prepares the managed environment for the native training backend and returns its probe result.</summary>
+    /// <param name="userConfirmed">Whether the operator approved installation in the managed environment.</param>
+    /// <param name="progress">Optional observer for preparation stages.</param>
+    /// <param name="cancellationToken">Cancellation token for environment setup and verification.</param>
+    /// <returns>The JSON object printed by the trainer probe.</returns>
+    Task<string> PrepareAsync(bool userConfirmed, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Builds the identity train and eval files from the configured question/answer templates and the facts LocalGPT already has, in a new job folder under the training root.
     /// </summary>

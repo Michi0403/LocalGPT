@@ -30,7 +30,7 @@ namespace LocalGPT.Interfaces
         /// <summary>Reads one unchanged original attachment owned by the specified Chat, under a caller-supplied transfer budget.</summary>
         /// <param name="conversationId">Owning Chat identifier.</param>
         /// <param name="workspaceName">Upload workspace identifier.</param>
-        /// <param name="fileName">Original file's stored basename.</param>
+        /// <param name="fileName">Original file's stored basename or its listed original/ reference.</param>
         /// <param name="maximumBytes">Maximum number of bytes to read.</param>
         /// <param name="cancellationToken">Cancels the attachment read.</param>
         /// <returns>The verified attachment, or null when it is unavailable within the transfer budget.</returns>

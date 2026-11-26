@@ -17,6 +17,11 @@ public interface IProviderModelBenchmarkService
         ProviderModelBenchmarkRequest request,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Attempts to store a completed or interrupted benchmark run in the evidence archive.</summary>
+    /// <param name="report">The aggregate report owned by the run coordinator.</param>
+    /// <returns>A task that completes after the persistence attempt.</returns>
+    Task TryPersistBenchmarkEvidenceAsync(ProviderModelBenchmarkReport report);
+
     /// <summary>Returns recent durable benchmark evidence archives without loading their potentially large task payloads.</summary>
     /// <param name="maxCount">Maximum number of report archives to return, newest first.</param>
     /// <param name="cancellationToken">Cancellation token for local evidence enumeration.</param>

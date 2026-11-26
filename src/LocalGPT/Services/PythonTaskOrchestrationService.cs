@@ -37,7 +37,7 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
     /// <summary>
     /// Signals pending subprocess admission requests when an active job releases its capacity slot.
     /// </summary>
-    private readonly SemaphoreSlim processCapacityChanged = new(0);
+    private TaskCompletionSource processCapacityChanged = new(TaskCreationOptions.RunContinuationsAsynchronously);
     /// <summary>
     /// Stores the service scope factory dependency used by <see cref="PythonTaskOrchestrationService"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
@@ -50,6 +50,8 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
     /// Counts currently reserved subprocess admission slots; embedded Python.NET work is excluded.
     /// </summary>
     private int activeProcessJobs;
+    private int waitingExclusiveJobs;
+    private bool exclusiveProcessActive;
     /// <summary>
     /// Limits the number of completed Python jobs retained in memory.
     /// </summary>
@@ -192,8 +194,34 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
                 throw new InvalidOperationException("Python runtime plugin requires a validated, enabled Python compiler profile.");
             if (!File.Exists(compiler.ExecutablePath) || !File.Exists(scriptPath))
                 throw new FileNotFoundException("The validated Python runtime or approved script file is missing.");
-            var lane = ResourceLane(compiler.EnvironmentVariablesJson);
-            var job = Register("runtime-plugin.python", lane, cancellationToken);
+            return await RunAdmittedProcessAsync("runtime-plugin.python", ResourceLane(compiler.EnvironmentVariablesJson),
+                (_, token) => LaunchPythonProcessAsync(compiler, scriptPath, parameters, token),
+                result => result.ExitCode == 0, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            if (ex is OperationCanceledException)
+                logger.LogDebug(ex, "Approved Python plugin process cancelled.");
+            else
+                logger.LogError(ex, "Approved Python plugin process failed; source and parameters omitted.");
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<string> RunPackagedTrainingAsync(Func<Action<PythonTrainingProgress>, CancellationToken, Task<string>> train,
+        CancellationToken cancellationToken = default)
+        => RunAdmittedProcessAsync("model-training.lora", ResourceLane(null), (job, token) => train(progress =>
+        {
+            lock (gate)
+                job.Snapshot.TrainingProgress = progress;
+        }, token), _ => true, cancellationToken, exclusive: true);
+
+    private async Task<TResult> RunAdmittedProcessAsync<TResult>(string operation, string lane,
+        Func<JobState, CancellationToken, Task<TResult>> launch, Func<TResult, bool> succeeded,
+        CancellationToken cancellationToken, bool exclusive = false)
+    {
+            var job = Register(operation, lane, cancellationToken);
             SemaphoreSlim device;
             lock (gate)
             {
@@ -204,13 +232,14 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
             var deviceHeld = false;
             try
             {
-                await ReserveProcessCapacityAsync(job.Cancellation.Token).ConfigureAwait(false);
+                await ReserveProcessCapacityAsync(job.Cancellation.Token, exclusive).ConfigureAwait(false);
                 globalHeld = true;
                 await device.WaitAsync(job.Cancellation.Token).ConfigureAwait(false);
                 deviceHeld = true;
                 Start(job);
-                var result = await LaunchPythonProcessAsync(compiler, scriptPath, parameters, job.Cancellation.Token).ConfigureAwait(false);
-                Complete(job, result.ExitCode == 0 ? "Completed" : "Failed", result.ExitCode == 0);
+                var result = await launch(job, job.Cancellation.Token).ConfigureAwait(false);
+                var successful = succeeded(result);
+                Complete(job, successful ? "Completed" : "Failed", successful);
                 return result;
             }
             catch (OperationCanceledException)
@@ -226,18 +255,9 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
             finally
             {
                 if (deviceHeld) device.Release();
-                if (globalHeld) ReleaseProcessCapacity();
+                if (globalHeld) ReleaseProcessCapacity(exclusive);
                 job.Cancellation.Dispose();
             }
-        }
-        catch (Exception ex)
-        {
-            if (ex is OperationCanceledException)
-                logger.LogDebug(ex, "Approved Python plugin process cancelled.");
-            else
-                logger.LogError(ex, "Approved Python plugin process failed; source and parameters omitted.");
-            throw;
-        }
     }
 
     /// <summary>
@@ -368,24 +388,48 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
     /// Waits asynchronously until the configured global subprocess concurrency budget has a free slot, then atomically reserves it.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="exclusive">Reserve the process budget only after all other processes have finished.</param>
     /// <returns>A task that completes only after a process slot has been reserved.</returns>
-    private async Task ReserveProcessCapacityAsync(CancellationToken cancellationToken)
+    private async Task ReserveProcessCapacityAsync(CancellationToken cancellationToken, bool exclusive)
     {
         try
         {
             var capacity = await ReadProcessCapacityAsync(cancellationToken).ConfigureAwait(false);
-            while (true)
+            if (exclusive)
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 lock (gate)
+                    waitingExclusiveJobs++;
+            }
+            try
+            {
+                while (true)
                 {
-                    if (activeProcessJobs < capacity)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Task capacityChanged;
+                    lock (gate)
                     {
-                        activeProcessJobs++;
-                        return;
+                        if (exclusive ? activeProcessJobs == 0
+                            : !exclusiveProcessActive && waitingExclusiveJobs == 0 && activeProcessJobs < capacity)
+                        {
+                            activeProcessJobs++;
+                            exclusiveProcessActive = exclusive;
+                            return;
+                        }
+                        capacityChanged = processCapacityChanged.Task;
+                    }
+                    await capacityChanged.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                if (exclusive)
+                {
+                    lock (gate)
+                    {
+                        waitingExclusiveJobs--;
+                        SignalCapacityChange();
                     }
                 }
-                await processCapacityChanged.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception exception)
@@ -399,19 +443,30 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
     /// <summary>
     /// Releases a previously reserved subprocess slot and wakes one pending admission request.
     /// </summary>
-    private void ReleaseProcessCapacity()
+    private void ReleaseProcessCapacity(bool exclusive)
     {
         try
         {
             lock (gate)
-                activeProcessJobs = Math.Max(0, activeProcessJobs - 1);
-            processCapacityChanged.Release();
+            {
+                activeProcessJobs--;
+                if (exclusive)
+                    exclusiveProcessActive = false;
+                SignalCapacityChange();
+            }
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Releasing Python process capacity failed.");
             throw;
         }
+    }
+
+    private void SignalCapacityChange()
+    {
+        var previous = processCapacityChanged;
+        processCapacityChanged = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        previous.SetResult();
     }
 
     /// <summary>
@@ -540,7 +595,8 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
             {
                 JobId = source.JobId, Operation = source.Operation, Lane = source.Lane, Status = source.Status,
                 CreatedAtUtc = source.CreatedAtUtc, StartedAtUtc = source.StartedAtUtc, CompletedAtUtc = source.CompletedAtUtc,
-                CancellationRequested = source.CancellationRequested, Succeeded = source.Succeeded
+                CancellationRequested = source.CancellationRequested, Succeeded = source.Succeeded,
+                TrainingProgress = source.TrainingProgress
             };
         }
         catch (Exception exception)
@@ -560,7 +616,6 @@ public sealed class PythonTaskOrchestrationService : IPythonNetRuntimeCoordinato
         lock (gate)
             foreach (var state in jobs.Values.Where(item => item.Snapshot.CompletedAtUtc is null))
                 state.Cancellation.Cancel();
-        processCapacityChanged.Dispose();
         foreach (var entry in deviceGates.Values) entry.Dispose();
     
         }

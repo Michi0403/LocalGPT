@@ -32,6 +32,19 @@ namespace LocalGPT.Services
         /// <value>The database path value exposed by <see cref="CouncilKnowledgeService"/>.</value>
         public string DatabasePath => databaseFileHealth.DatabasePath;
 
+        /// <inheritdoc />
+        public (string? ContentSha256, string? IneligibleReason) InspectTrainingRevision(CouncilKnowledgeEntry entry, DateTime snapshotUtc)
+        {
+            if (!entry.IsUserApproved || entry.VerificationStatus != "UserVerified")
+                return (null, "This revision needs user verification and approval.");
+            if (entry.IsArchived || entry.SupersededByKnowledgeId.HasValue || entry.StalenessDetectedAtUtc.HasValue || entry.ExpiresAtUtc <= snapshotUtc)
+                return (null, "Select a current, active knowledge revision.");
+            if (string.IsNullOrWhiteSpace(entry.Source) || string.IsNullOrWhiteSpace(entry.Content) || entry.Content.Length > 32_000)
+                return (null, "A source and content between 1 and 32,000 characters are required.");
+
+            return (Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(entry.Content))), null);
+        }
+
         /// <summary>
         /// Ensures created as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>

@@ -59,7 +59,7 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
     /// <summary>
     /// Defines the current seed version constant used by <see cref="CouncilTeamConfigurationService"/> so callers and internal logic share the same stable value.
     /// </summary>
-    private const int CurrentSeedVersion = 57;
+    private const int CurrentSeedVersion = 58;
     /// <summary>
     /// Gets the max roles value that forms part of the council team configuration state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -190,7 +190,9 @@ public sealed partial class CouncilTeamConfigurationService : ICouncilTeamConfig
                     .Select(item => item.Key)
                     .ToListAsync(cancellationToken)
                     .ConfigureAwait(false);
-                var customKey = CreateUniqueUserCopyKey(requestedKey, existingKeys);
+                var customKey = request.ApprovedSeedCopyKey ?? CreateUniqueUserCopyKey(requestedKey, existingKeys);
+                if (existingKeys.Contains(customKey, StringComparer.OrdinalIgnoreCase))
+                    throw new InvalidOperationException($"The user-owned Council team '{customKey}' already exists. Open it to review the saved settings.");
                 definitionToSave = CloneAsUserOwnedDefinition(request.Team, customKey, ToDefinition(row));
                 row = new CouncilTeamConfiguration
                 {

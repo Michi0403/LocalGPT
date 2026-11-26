@@ -19,6 +19,7 @@ public interface ILocalAiAcquisitionService
     /// <summary>Downloads and installs one reviewed executable model integration through the managed Python environment.</summary>
     /// <param name="request">The reviewed source key, variant, and confirmation state.</param>
     /// <param name="cancellationToken">Cancellation token that stops download or installation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>The registered LocalGPT specialized-model installation.</returns>
-    Task<LocalAiModelInstallation> InstallKnownModelAsync(LocalAiKnownModelInstallRequest request, CancellationToken cancellationToken = default);
+    Task<LocalAiModelInstallation> InstallKnownModelAsync(LocalAiKnownModelInstallRequest request, CancellationToken cancellationToken = default, IProgress<string>? progress = null);
 }

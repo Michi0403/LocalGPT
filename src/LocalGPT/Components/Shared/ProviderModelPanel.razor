@@ -390,8 +390,8 @@
         loadingAdapterReviews = true;
         try
         {
-            await AdapterRevisions.UseForRoleAsync(reviewId, CancellationToken.None).ConfigureAwait(false);
-            await InvokeAsync(() => adapterReviewStatus = "Assigned the reviewed adapter revision.").ConfigureAwait(false);
+            var saved = await AdapterRevisions.UseForRoleAsync(reviewId, CancellationToken.None).ConfigureAwait(false);
+            await InvokeAsync(() => adapterReviewStatus = $"Assigned the reviewed adapter in {saved.DisplayName} ({saved.Key}). Select this team when starting a Council run.").ConfigureAwait(false);
         }
         catch (InvalidOperationException exception)
         {

@@ -33,7 +33,8 @@ namespace LocalGPT.Services
                     task.ExpectJson,
                     Math.Clamp(task.ExpectedSectionCount, 0, BenchmarkParameters.MaximumExpectedSections),
                     task.RequireEmbeddedJsonObject,
-                    task.EnforceRoleExecution))
+                    task.EnforceRoleExecution,
+                    task.ExpectedJson))
                 .ToList();
         }
 

@@ -206,7 +206,17 @@ namespace LocalGPT.Services
                 }
                 else
                 {
-                    taskResult.QualityScore = ScoreQuality(text, task);
+                    if (task.ExpectedJson is { } expected)
+                    {
+                        var (formatValid, correct) = nutsAssessment.AssessAnswer(text, expected);
+                        taskResult.NutsResponseFormatValid = formatValid;
+                        taskResult.NutsAnswerCorrect = correct;
+                        taskResult.QualityScore = correct ? 1d : 0d;
+                    }
+                    else
+                    {
+                        taskResult.QualityScore = ScoreQuality(text, task);
+                    }
                     // Wall-clock throughput includes model-load and prompt-evaluation latency. Retain
                     // it for comparable benchmark scoring; expose post-first-text throughput separately.
                     taskResult.TokensPerSecond = EstimateTokens(text) / Math.Max(0.001d, stopwatch.Elapsed.TotalSeconds);

@@ -112,7 +112,7 @@ public sealed class ModelAdapterRevisionService(
         }
     }
 
-    internal async Task UseForRoleAsync(Guid reviewId, CancellationToken cancellationToken)
+    internal async Task<OrganicCouncilTeamDefinition> UseForRoleAsync(Guid reviewId, CancellationToken cancellationToken)
     {
         try
         {
@@ -126,7 +126,7 @@ public sealed class ModelAdapterRevisionService(
                 && model.RevisionDigest.Equals(review.AdapterDigest, StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("The reviewed adapter revision has changed or is unavailable. Rerun the comparison.");
 
-            await assessment.SaveRoleDefaultAsync(review.TeamKey, review.Role, review.AdapterModelKey, cancellationToken,
+            return await assessment.SaveRoleDefaultAsync(review.TeamKey, review.Role, review.AdapterModelKey, cancellationToken,
                 review.AdapterDigest).ConfigureAwait(false);
         }
         catch (OperationCanceledException exception)

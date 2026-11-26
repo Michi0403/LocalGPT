@@ -110,7 +110,8 @@ public sealed class CouncilBenchmarkCalibrationService(
                 {
                     var target = queue[targetIndex];
                     var activityKey = activityKeys[target.SelectionKey];
-                    cancellationToken.ThrowIfCancellationRequested();
+                    if (cancellationToken.IsCancellationRequested)
+                        break;
                     liveSessions.SetParticipantActivityStatus(
                         request.CouncilRunId,
                         activityKey,
@@ -121,6 +122,7 @@ public sealed class CouncilBenchmarkCalibrationService(
                         $"_Provider-qualified subject: `{target.ProviderKind}` · `{target.Endpoint}` · `{target.ModelName}`._\n\n");
                     liveSessions.Touch(request.CouncilRunId);
 
+                    ProviderModelBenchmarkReport? partialReport = null;
                     try
                     {
                         var targetReport = await benchmark.RunAsync(
@@ -147,6 +149,7 @@ public sealed class CouncilBenchmarkCalibrationService(
                                 ImprovementThresholdPercent = 0d,
                                 IncludeCouncilReview = false,
                                 OwnLiveSession = false,
+                                CollectEvidence = report => partialReport = report,
                                 ProgressMessage = message =>
                                 {
                                     if (string.IsNullOrWhiteSpace(message))
@@ -188,10 +191,17 @@ public sealed class CouncilBenchmarkCalibrationService(
                                 ? "Benchmark Subject completed with live provider measurement evidence."
                                 : "Benchmark Subject completed with explicit provider failure evidence.");
                     }
-                    catch (OperationCanceledException)
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
+                        if (partialReport is not null)
+                        {
+                            foreach (var result in partialReport.Targets.Where(result => string.IsNullOrWhiteSpace(result.Error)))
+                                result.Error = "Benchmark cancelled before the target finished.";
+                            hostReport.Targets.AddRange(partialReport.Targets);
+                            hostReport.Warnings.AddRange(partialReport.Warnings);
+                        }
                         liveSessions.SetParticipantActivityStatus(request.CouncilRunId, activityKey, "Benchmark Subject cancelled by the owning Council run.");
-                        throw;
+                        break;
                     }
                     catch (Exception exception)
                     {
@@ -239,11 +249,26 @@ public sealed class CouncilBenchmarkCalibrationService(
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var missingBenchmarkTargets = benchmarkTargets
                 .Where(target => !measuredSelectionKeys.Contains(target.SelectionKey))
-                .Select(target => target.SelectionKey)
                 .ToList();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                report.Warnings.Add($"The benchmark was cancelled after capturing {report.Targets.Count} of {benchmarkTargets.Count} target result(s).");
+                report.Targets.AddRange(missingBenchmarkTargets.Select(target => new ProviderModelBenchmarkTargetResult
+                {
+                    Model = target,
+                    Error = "Benchmark cancelled before this target ran."
+                }));
+                report.Targets = report.Targets.OrderBy(item => requestedTargets.FindIndex(requested =>
+                    requested.SelectionKey.Equals(item.Model.SelectionKey, StringComparison.OrdinalIgnoreCase))).ToList();
+            }
+            if (missingBenchmarkTargets.Count > 0)
+                report.Warnings.Add($"No provider measurement was recorded for: {string.Join(", ", missingBenchmarkTargets.Select(target => target.SelectionKey))}");
+            report.Warnings.AddRange(skipped);
+            await benchmark.TryPersistBenchmarkEvidenceAsync(report).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (missingBenchmarkTargets.Count > 0)
                 throw new InvalidOperationException(
-                    $"The all-model benchmark coverage contract was violated: {missingBenchmarkTargets.Count} benchmark-capable selected subject(s) were not returned by the deterministic measurement engine. Missing identities: {string.Join(", ", missingBenchmarkTargets)}");
+                    $"The all-model benchmark coverage contract was violated: {missingBenchmarkTargets.Count} benchmark-capable selected subject(s) were not returned by the deterministic measurement engine. Missing identities: {string.Join(", ", missingBenchmarkTargets.Select(target => target.SelectionKey))}");
 
             var coverage = new ProviderModelBenchmarkCoverageSnapshot(report);
             if (coverage.AttemptedTargetCount != benchmarkTargets.Count || !coverage.IsArithmeticConsistent)

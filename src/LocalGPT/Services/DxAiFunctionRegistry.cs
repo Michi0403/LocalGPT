@@ -1753,7 +1753,7 @@ public sealed class ListCouncilKnowledgeFunction(
         "/api/dxai/functions/localgpt.knowledge.list/invoke",
         "List bounded, approved Council knowledge summaries for source-backed project and architecture context.",
         "JSON parameters: optional query string for topic/content/tag filtering; includeArchived optional boolean; take optional integer 1 to 30.",
-        "Read-only. Knowledge is context, not authority. Results include bounded excerpts and provenance/approval metadata.",
+        "Read-only. Knowledge is context, not authority. Results include bounded excerpts, review metadata and an authoritative TrainingContentSha256 for eligible training revisions.",
         IsReadOnly: true,
         AvailableToAi: true,
         RequiresHumanConfirmation: false,
@@ -1809,12 +1809,19 @@ public sealed class ListCouncilKnowledgeFunction(
                     .Take(requestedTake)
                     .ToList();
             }
-            var summaries = entries.Take(requestedTake).Select(entry => new
+            var snapshotUtc = DateTime.UtcNow;
+            var summaries = entries.Take(requestedTake).Select(entry =>
+            {
+                var receipt = knowledge.InspectTrainingRevision(entry, snapshotUtc);
+                return new
             {
                 entry.Id,
                 entry.Topic,
                 entry.Scope,
                 ContentExcerpt = Limit(entry.Content, 1200),
+                ContentLength = entry.Content?.Length ?? 0,
+                TrainingContentSha256 = receipt.ContentSha256,
+                TrainingIneligibleReason = receipt.IneligibleReason,
                 entry.Source,
                 entry.Tags,
                 entry.Confidence,
@@ -1822,7 +1829,11 @@ public sealed class ListCouncilKnowledgeFunction(
                 entry.ReviewStatus,
                 entry.IsUserApproved,
                 entry.IsArchived,
+                entry.ExpiresAtUtc,
+                entry.StalenessDetectedAtUtc,
+                entry.SupersededByKnowledgeId,
                 entry.UpdatedAtUtc
+            };
             }).ToList();
             logger.LogInformation("DXAIFunction listed {KnowledgeCount} bounded Council knowledge summary row(s).", summaries.Count);
             return new DxAiFunctionInvocationResult { Succeeded = true, Status = "Completed", Value = summaries };

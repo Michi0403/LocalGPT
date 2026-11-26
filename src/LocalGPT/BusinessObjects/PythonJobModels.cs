@@ -3,6 +3,9 @@ namespace LocalGPT.BusinessObjects;
 /// <summary>Content-free, bounded monitoring projection for an embedded or process-isolated Python task.</summary>
 public sealed class PythonJobSnapshot
 {
+    /// <summary>Latest recognized training phase and optional step count.</summary>
+    public PythonTrainingProgress? TrainingProgress { get; set; }
+
     /// <summary>
     /// Gets or sets the stable job identifier used to identify or correlate this python job snapshot instance with related application state.
     /// </summary>
@@ -48,6 +51,16 @@ public sealed class PythonJobSnapshot
     /// </summary>
     /// <value>The succeeded value exposed by <see cref="PythonJobSnapshot"/>.</value>
     public bool Succeeded { get; set; }
+}
+
+/// <summary>Payload-free progress from the packaged model trainer.</summary>
+/// <param name="Phase">Recognized phase of the trainer.</param>
+/// <param name="Step">Most recent training step, when reported.</param>
+/// <param name="TotalSteps">Expected number of training steps, when reported.</param>
+public sealed record PythonTrainingProgress(string Phase, int? Step, int? TotalSteps)
+{
+    /// <summary>Formats the phase and any reported counts for the task monitor.</summary>
+    public override string ToString() => TotalSteps is int total ? $"{Phase} {Step ?? 0}/{total}" : Phase;
 }
 
 /// <summary>Bounded output from an approved and configured Python runtime plugin.</summary>

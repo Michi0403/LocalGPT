@@ -516,23 +516,25 @@ public sealed class ToolchainAcquisitionService(
 
                 var sourceStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
                 await using var configuredSourceStreamAsyncDisposal = sourceStream.ConfigureAwait(false);
-                var destination = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                await using var configuredDestinationAsyncDisposal = destination.ConfigureAwait(false);
                 using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
                 var buffer = new byte[128 * 1024];
                 long total = 0;
-                while (true)
                 {
-                    var read = await sourceStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
-                    if (read == 0)
-                        break;
-                    total += read;
-                    if (total > MaximumDownloadBytes)
-                        throw new InvalidOperationException("The toolchain artifact exceeded LocalGPT's 1 GiB direct-download limit while streaming.");
-                    hash.AppendData(buffer, 0, read);
-                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    var destination = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    await using var configuredDestinationAsyncDisposal = destination.ConfigureAwait(false);
+                    while (true)
+                    {
+                        var read = await sourceStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                        if (read == 0)
+                            break;
+                        total += read;
+                        if (total > MaximumDownloadBytes)
+                            throw new InvalidOperationException("The toolchain artifact exceeded LocalGPT's 1 GiB direct-download limit while streaming.");
+                        hash.AppendData(buffer, 0, read);
+                        await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    }
+                    await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
-                await destination.FlushAsync(cancellationToken).ConfigureAwait(false);
                 File.Move(temporaryPath, finalPath, overwrite: true);
                 var digest = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
                 logger.LogInformation("Downloaded reviewed toolchain source {SourceKey} with {Bytes} bytes; the local path was omitted from logs.", source.Key, total);

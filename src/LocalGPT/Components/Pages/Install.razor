@@ -33,6 +33,7 @@
 @inject LocalGPT.Services.Localization.ILocalGptLocalizationService Localization
 @inject ILocalGptApplicationPathService ApplicationPaths
 @inject ILocalAiRuntimeService LocalAiRuntime
+@inject IModelTrainingService ModelTraining
 @inject IPythonJobOrchestrationService PythonJobs
 @inject ILocalAiAcquisitionService LocalAiAcquisition
 @inject IHuggingFaceModelCatalogService HuggingFaceCatalog
@@ -1013,9 +1014,22 @@
                 <p class="field-help">The Python finder and linker live with the other toolchains. Discovery uses the same local knowledge profiles as .NET, Node.js, Java and native tools. Linking Python does not require a machine-wide PATH rewrite.</p>
                 <div class="toolchain-actions">
                     <DxButton Text="Discover Python runtimes" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy && !ToolchainRuntimeBusy)" Click="DiscoverLocalAiPythonAsync" />
-                    <DxButton Text="Create managed Python environment + core" Enabled="@(!LocalAiBusy && !ToolchainRuntimeBusy)" Click="CreateLocalAiEnvironmentAsync" />
+                    <DxButton Text="Create managed Python environment + core" Enabled="@(!LocalAiBusy && !ToolchainRuntimeBusy && LocalAiStatus is { PythonExecutableExists: true, PythonRuntimeLibraryExists: true })" Click="CreateLocalAiEnvironmentAsync" />
                     <DxButton Text="Refresh toolchain helpers" Enabled="@(!ToolchainRuntimeBusy)" Click="RefreshToolchainRuntimeManagementAsync" />
                 </div>
+                @if (LocalAiStatus is not { PythonExecutableExists: true, PythonRuntimeLibraryExists: true })
+                {
+                    <p class="field-help">Discover and select a Python runtime before creating the managed environment.</p>
+                }
+                @if (LocalAiStatus is { } pythonStatus)
+                {
+                    <div class="local-ai-status-grid">
+                        <span><strong>Python executable</strong><small>@(pythonStatus.PythonExecutableExists ? "found" : "missing")</small></span>
+                        <span><strong>CPython shared runtime</strong><small>@(pythonStatus.PythonRuntimeLibraryExists ? "found" : "missing")</small></span>
+                        <span><strong>Managed environment</strong><small>@(pythonStatus.VirtualEnvironmentExists ? "ready for package installation" : "needs to be created")</small></span>
+                    </div>
+                }
+                @LocalAiProgress("environment")
                 @if (LocalAiPythonCandidates.Count > 0)
                 {
                     <div class="toolchain-grid local-ai-candidate-grid">
@@ -1428,13 +1442,18 @@
                 </div>
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(LocalAiStatusText))
+            @LocalAiProgress(null)
+            @if (LocalAiStatus?.VirtualEnvironmentExists != true)
             {
-                <div class="installer-status-line"><span>@LocalAiStatusText</span></div>
+                <p class="field-help">
+                    Create the managed Python environment before installing packages or models.
+                    <DxButton Text="Open Toolchains" RenderStyle="ButtonRenderStyle.Secondary" Click='() => OnInstallSectionChanged("toolchains")' />
+                </p>
             }
 
             @if (LocalAiStatus is not null)
             {
+                <p class="field-help">@LocalAiStatus.Message</p>
                 <div class="local-ai-status-grid">
                     <span><strong>Configured</strong><small>@LocalAiStatus.Configured</small></span>
                     <span><strong>Python.NET</strong><small>@(LocalAiStatus.PythonNetAvailable ? "available" : "not installed")</small></span>
@@ -1461,6 +1480,11 @@
                                 <DxGridDataColumn FieldName="Operation" Caption="Operation" />
                                 <DxGridDataColumn FieldName="Lane" Caption="Resource lane" />
                                 <DxGridDataColumn FieldName="Status" Caption="Status" />
+                                <DxGridDataColumn Caption="Training progress">
+                                    <CellDisplayTemplate Context="trainingJobCell">
+                                        @((trainingJobCell.DataItem as PythonJobSnapshot)?.TrainingProgress?.ToString())
+                                    </CellDisplayTemplate>
+                                </DxGridDataColumn>
                                 <DxGridDataColumn FieldName="CreatedAtUtc" Caption="Submitted UTC" />
                                 <DxGridDataColumn FieldName="CancellationRequested" Caption="Cancel requested" />
                                 <DxGridDataColumn Caption="Action" Width="110px">
@@ -1548,9 +1572,10 @@
                                 <DxButton Text="Download upstream source" Enabled="@(!LocalAiBusy)" Click="@(() => DownloadKnownLocalAiSourceAsync(source.Key))" />
                                 @if (source.CanInstall)
                                 {
-                                    <DxButton Text="Install real model via Python" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="@(() => InstallKnownLocalAiModelAsync(source.Key))" />
+                                    <DxButton Text="Install real model via Python" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy && LocalAiStatus?.VirtualEnvironmentExists == true)" Click="@(() => InstallKnownLocalAiModelAsync(source.Key))" />
                                 }
                             </div>
+                            @LocalAiProgress($"source:{source.Key}")
                         </article>
                     }
                 </div>
@@ -1560,6 +1585,22 @@
             <details class="provider-install-guide" open>
                 <summary><strong>2 · Python capability packages</strong> · isolated profiles, no global package pollution</summary>
                 <p class="field-help">The core profile keeps the managed environment minimal. PyTorch stays separate so CUDA, ROCm, Apple/MPS or other vendor-specific installs are never silently replaced by a generic wheel. OpenAI Whisper dependencies also avoid replacing PyTorch. Package/profile and Whisper installs run in the isolated environment process even after Python.NET was probed; when that happens LocalGPT marks a restart as required before the embedded runtime uses the changed packages.</p>
+                <article class="toolchain-card">
+                    <h4>LoRA training</h4>
+                    <div class="toolchain-actions">
+                        <DxButton Text="Prepare LoRA training" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="@(() => CheckLocalAiTrainingAsync(true))" />
+                        <DxButton Text="Check training readiness" Enabled="@(!LocalAiBusy)" Click="@(() => CheckLocalAiTrainingAsync(false))" />
+                    </div>
+                    @LocalAiProgress("training")
+                    @if (TrainingInterpreter is not null)
+                    {
+                        <p>Python <code>@TrainingInterpreter</code> · Backend <strong>@TrainingBackend</strong></p>
+                    }
+                    @if (TrainingNextStep is not null)
+                    {
+                        <p class="field-help">@TrainingNextStep</p>
+                    }
+                </article>
                 <div class="local-ai-profile-grid">
                     @foreach (var profile in LocalAiPackageProfiles)
                     {
@@ -1571,7 +1612,8 @@
                             {
                                 <p class="local-ai-warning">This profile changes the PyTorch installation. Use it only when the default PyPI backend is the one you actually want.</p>
                             }
-                            <DxButton Text="Install profile" Enabled="@(!LocalAiBusy)" Click="@(() => InstallLocalAiPackageProfileAsync(profile.Key))" />
+                            <DxButton Text="Install profile" Enabled="@(!LocalAiBusy && LocalAiStatus?.VirtualEnvironmentExists == true)" Click="@(() => InstallLocalAiPackageProfileAsync(profile.Key))" />
+                            @LocalAiProgress($"package:{profile.Key}")
                         </article>
                     }
                 </div>
@@ -1582,7 +1624,7 @@
                 <p class="field-help">Hugging Face is optional, provider-bound functionality rather than LocalGPT's default model source. Search is metadata-only. Snapshot installation is available only when you explicitly choose it and install the optional hub client profile; it does not git-clone or execute repository setup scripts. Gated/private models use the configured token environment variable and custom repository code stays disabled unless explicitly approved.</p>
                 <div class="local-ai-search-row">
                     <label>Search
-                        <DxTextBox @bind-Text="LocalAiSearchQuery" NullText="Qwen Image, Wan, Whisper..." />
+                        <DxTextBox @bind-Text="LocalAiSearchQuery" BindValueMode="BindValueMode.OnInput" NullText="Qwen Image, Wan, Whisper..." />
                     </label>
                     <label>Search capability filter
                         <DxComboBox Data="@LocalAiCapabilityOptions" @bind-Value="LocalAiSearchCapability" />
@@ -1591,12 +1633,13 @@
                         <DxComboBox Data="@LocalAiSearchSortOptions" @bind-Value="LocalAiSearchSort" />
                     </label>
                     <label>Explicit install capability
-                        <DxComboBox Data="@LocalAiCapabilityOptions" @bind-Value="LocalAiManualCapability" />
+                        <DxComboBox Data="@LocalAiInstallCapabilityOptions" @bind-Value="LocalAiManualCapability" />
                     </label>
                     <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="LocalAiTrustRemoteCode" /> Allow <code>trust_remote_code</code> for the model I explicitly install</label>
                     <DxButton Text="Search Hugging Face" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="SearchHuggingFaceAsync" />
                     <DxButton Text="Recent liked in category" RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!LocalAiBusy)" Click="LoadRecentLikedHuggingFaceAsync" />
                 </div>
+                @LocalAiProgress("hub")
                 @if (LocalAiSearchResults.Count > 0)
                 {
                     <DxGrid Data="@LocalAiSearchResults" KeyFieldName="ModelId" PageSize="15"
@@ -1616,15 +1659,21 @@
                                 <CellDisplayTemplate Context="hfModelCell">
                                     @if (hfModelCell.DataItem is HuggingFaceModelSearchResult model)
                                     {
-                                        <DxButton Text="Install snapshot" RenderStyle="ButtonRenderStyle.Primary"
-                                                  Enabled="@(!LocalAiBusy && CanInstallLocalAiModel(model))"
-                                                  Click="@(() => InstallHuggingFaceModelAsync(model))" />
+                                        @if (GetLocalAiInstallCapabilities(model).Count == 0)
+                                        {
+                                            <small>No runtime adapter</small>
+                                        }
+                                        else
+                                        {
+                                            <DxButton Text="Install snapshot" RenderStyle="ButtonRenderStyle.Primary"
+                                                      Enabled="@(!LocalAiBusy && LocalAiStatus?.VirtualEnvironmentExists == true)"
+                                                      Click="@(() => InstallHuggingFaceModelAsync(model))" />
+                                        }
                                     }
                                 </CellDisplayTemplate>
                             </DxGridDataColumn>
                         </Columns>
                     </DxGrid>
-                    <p class="field-help">Search and sort all returned model properties locally. Provider queries and the existing approval-gated snapshot installation remain unchanged.</p>
                 }
             </details>
 
@@ -1757,4 +1806,19 @@
     </DxFormLayoutItem>
 </DxFormLayout>
 </div>
+
+@code {
+    private RenderFragment LocalAiProgress(string? operation) => @<div>
+        @if (LocalAiOperation == operation && !string.IsNullOrWhiteSpace(LocalAiStatusText))
+        {
+            <div class="installer-status-line" role="status">
+                @if (LocalAiBusy)
+                {
+                    <progress aria-label="Local AI setup in progress"></progress>
+                }
+                <span>@LocalAiStatusText</span>
+            </div>
+        }
+    </div>;
+}
 

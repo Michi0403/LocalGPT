@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 
 namespace LocalGPT.Services;
@@ -21,6 +22,7 @@ namespace LocalGPT.Services;
 /// <param name="platform">Platform runtime service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
 /// <param name="environment">Web host environment dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="console">Publishes setup progress to LocalGPT's operator console.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed partial class LocalAiRuntimeService(
     IOptionsMonitor<LocalGptConfigurationRoot> options,
@@ -34,6 +36,7 @@ public sealed partial class LocalAiRuntimeService(
     IPlatformRuntimeService platform,
     IWebHostEnvironment environment,
     ILocalGptRuntimePolicyDataService runtimePolicy,
+    IConsoleCommandService console,
     ILogger<LocalAiRuntimeService> logger) : ILocalAiRuntimeService
 {
     /// <summary>
@@ -45,6 +48,53 @@ public sealed partial class LocalAiRuntimeService(
     /// </summary>
     /// <value>The parameters value exposed by <see cref="LocalAiRuntimeService"/>.</value>
     private LocalAiRuntimeParameters Parameters => runtimePolicy.GetJson<LocalAiRuntimeParameters>("LocalAiRuntimeParametersJson");
+
+    private void ReportInstallProgress(IProgress<string>? progress, string message)
+    {
+        console.PublishOperatorMessage(message);
+        progress?.Report(message);
+    }
+
+    /// <inheritdoc />
+    public async Task InstallTrainingDependenciesAsync(bool useMlx, bool userConfirmed, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            RequireConfirmation(userConfirmed, "installing LoRA training dependencies");
+            await EnsureRuntimePolicyLoadedAsync(cancellationToken).ConfigureAwait(false);
+            var executable = GetManagedPythonExecutable();
+            var environmentPath = ResolveEnvironmentPath(CurrentConfig());
+            var profile = new LocalAiPackageProfile
+            {
+                Key = useMlx ? "lora-mlx" : "lora-pytorch",
+                DisplayName = useMlx ? "MLX LoRA training" : "PyTorch LoRA training",
+                Packages = useMlx ? ["mlx", "mlx-lm"] : ["transformers>=4.55", "peft", "trl", "datasets", "accelerate>=1.10"]
+            };
+            if (!useMlx)
+            {
+                ReportInstallProgress(progress, "Checking the managed PyTorch installation…");
+                var result = await RunProcessAsync(executable,
+                    ["-c", "import torch; from importlib.metadata import version; print(version('torch'))"],
+                    environmentPath, TimeSpan.FromMinutes(1), cancellationToken).ConfigureAwait(false);
+                var version = result.StdOut.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.Trim();
+                if (result.ExitCode != 0 || version is null || !Regex.IsMatch(version, @"\A[0-9][A-Za-z0-9.+!_-]{0,127}\z", RegexOptions.CultureInvariant))
+                    throw new InvalidOperationException("PyTorch could not load in the managed Python environment. Install the build for this machine in Install → Local AI runtimes, then retry LoRA preparation.");
+                profile.Packages.Add($"torch=={version}");
+            }
+
+            await InstallPackagesAsync(profile, cancellationToken, progress).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "LoRA dependency installation was canceled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning("LoRA dependency installation failed with {ExceptionType}.", exception.GetType().Name);
+            throw;
+        }
+    }
     /// <summary>
     /// Stores the in-memory executable capabilities collection maintained internally by <see cref="LocalAiRuntimeService"/> for its current workflow state.
     /// </summary>
@@ -56,6 +106,9 @@ public sealed partial class LocalAiRuntimeService(
         LocalAiCapability.ImageToVideo,
         LocalAiCapability.SpeechRecognition
     ];
+
+    /// <inheritdoc />
+    public bool SupportsModelCapability(LocalAiCapability capability) => ExecutableCapabilities.Contains(capability);
     /// <summary>
     /// Defines the runtime policy profile key constant used by <see cref="LocalAiRuntimeService"/> so callers and internal logic share the same stable value.
     /// </summary>
@@ -131,7 +184,7 @@ public sealed partial class LocalAiRuntimeService(
                 Configured = !string.IsNullOrWhiteSpace(config.PythonExecutable) && !string.IsNullOrWhiteSpace(config.PythonRuntime),
                 PythonExecutableExists = !string.IsNullOrWhiteSpace(config.PythonExecutable) && File.Exists(config.PythonExecutable),
                 PythonRuntimeLibraryExists = !string.IsNullOrWhiteSpace(config.PythonRuntime) && File.Exists(config.PythonRuntime),
-                VirtualEnvironmentExists = Directory.Exists(environmentPath),
+                VirtualEnvironmentExists = File.Exists(ResolveEnvironmentPython(environmentPath)),
                 PythonNetAvailable = true,
                 InterpreterInitialized = python.IsInitialized,
                 RestartRequired = python.RestartRequired || runtimePolicyRestartRequired,
@@ -389,8 +442,9 @@ public sealed partial class LocalAiRuntimeService(
     /// </summary>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    public async Task CreateManagedEnvironmentAsync(bool userConfirmed, CancellationToken cancellationToken = default)
+    public async Task CreateManagedEnvironmentAsync(bool userConfirmed, CancellationToken cancellationToken = default, IProgress<string>? progress = null)
     {
     try
     {
@@ -402,22 +456,26 @@ public sealed partial class LocalAiRuntimeService(
             Directory.CreateDirectory(Path.GetDirectoryName(environmentPath)!);
             if (!Directory.Exists(environmentPath) || !File.Exists(ResolveEnvironmentPython(environmentPath)))
             {
+                ReportInstallProgress(progress, "Creating the managed virtual environment…");
                 var create = await RunProcessAsync(pythonExecutable, ["-m", "venv", environmentPath], Path.GetDirectoryName(environmentPath), TimeSpan.FromMinutes(5), cancellationToken).ConfigureAwait(false);
                 EnsureProcessSuccess(create, "Python virtual-environment creation");
             }
             var environmentPython = RequireExistingFile(ResolveEnvironmentPython(environmentPath), "Managed environment Python executable");
+            ReportInstallProgress(progress, "Updating pip, setuptools, and wheel…");
             var packaging = await RunProcessAsync(
                 environmentPython,
-                ["-m", "pip", "install", "--disable-pip-version-check", "--upgrade", "pip", "setuptools", "wheel"],
+                ["-u", "-m", "pip", "install", "--disable-pip-version-check", "--progress-bar", "off", "--upgrade", "pip", "setuptools", "wheel"],
                 environmentPath,
                 TimeSpan.FromMinutes(10),
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken, progress, "Python packaging tools").ConfigureAwait(false);
             EnsureProcessSuccess(packaging, "Managed Python packaging-tool bootstrap");
             var profile = GetPackageProfiles().FirstOrDefault(item => item.Key.Equals("core", StringComparison.OrdinalIgnoreCase))
                 ?? throw new InvalidOperationException("The PythonCore package profile is missing the required 'core' profile.");
-            await InstallPackagesAsync(profile, cancellationToken).ConfigureAwait(false);
+            await InstallPackagesAsync(profile, cancellationToken, progress).ConfigureAwait(false);
+            ReportInstallProgress(progress, "Registering the managed Python toolchain…");
             await EnsureManagedPythonToolchainAsync(config.DefaultWhisperModel, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("LocalGPT-managed Python environment is ready; environment path and package output were omitted from logs.");
+            ReportInstallProgress(progress, "Managed Python environment is ready.");
     
     }
     catch (Exception __serviceMethodException)
@@ -436,8 +494,9 @@ public sealed partial class LocalAiRuntimeService(
     /// <param name="profileKey">Profile key value supplied to the local AI runtime operation and used when producing its result.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    public async Task InstallPackageProfileAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default)
+    public async Task InstallPackageProfileAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default, IProgress<string>? progress = null)
     {
     try
     {
@@ -445,7 +504,7 @@ public sealed partial class LocalAiRuntimeService(
             RequireConfirmation(userConfirmed, "installing Python packages");
             var profile = GetPackageProfiles().FirstOrDefault(item => item.Key.Equals(profileKey, StringComparison.OrdinalIgnoreCase))
                 ?? throw new KeyNotFoundException($"Python package profile '{profileKey}' was not found.");
-            await InstallPackagesAsync(profile, cancellationToken).ConfigureAwait(false);
+            await InstallPackagesAsync(profile, cancellationToken, progress).ConfigureAwait(false);
     
     }
     catch (Exception __serviceMethodException)
@@ -566,8 +625,9 @@ public sealed partial class LocalAiRuntimeService(
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>The local AI model installation produced by the operation.</returns>
-    public async Task<LocalAiModelInstallation> InstallModelAsync(LocalAiModelInstallRequest request, bool userConfirmed, CancellationToken cancellationToken = default)
+    public async Task<LocalAiModelInstallation> InstallModelAsync(LocalAiModelInstallRequest request, bool userConfirmed, CancellationToken cancellationToken = default, IProgress<string>? progress = null)
     {
         await EnsureRuntimePolicyLoadedAsync(cancellationToken).ConfigureAwait(false);
         ArgumentNullException.ThrowIfNull(request);
@@ -581,7 +641,7 @@ public sealed partial class LocalAiRuntimeService(
             .ToList();
         if (capabilities.Count == 0)
             throw new InvalidOperationException("A specialized model must be bound to at least one executable LocalGPT capability.");
-        var unsupported = capabilities.Where(value => !ExecutableCapabilities.Contains(value)).ToArray();
+        var unsupported = capabilities.Where(value => !SupportsModelCapability(value)).ToArray();
         if (unsupported.Length > 0)
             throw new NotSupportedException($"This LocalGPT release does not yet execute capability binding(s): {string.Join(", ", unsupported)}.");
         var config = CurrentConfig();
@@ -611,6 +671,7 @@ public sealed partial class LocalAiRuntimeService(
         var promotedToModelRoot = false;
         try
         {
+            ReportInstallProgress(progress, "Downloading the Hugging Face model snapshot…");
             var result = await RunBridgeProcessAsync("hf_snapshot_download", new Dictionary<string, object?>
             {
                 ["model_id"] = request.ModelId.Trim(),
@@ -630,6 +691,7 @@ public sealed partial class LocalAiRuntimeService(
             // Only documented executable kinds reach this managed-Python probe.
             foreach (var capability in capabilities)
             {
+                ReportInstallProgress(progress, $"Loading the downloaded weights offline to verify {capability}…");
                 var probeKind = capability switch
                 {
                     LocalAiCapability.ImageGeneration => "image",
@@ -664,6 +726,7 @@ public sealed partial class LocalAiRuntimeService(
                 RuntimeModelName = request.ModelId.Trim(),
                 InstalledAtUtc = DateTime.UtcNow
             };
+            ReportInstallProgress(progress, "Registering the verified model…");
             SaveManifest(modelRoot, installation);
             logger.LogInformation("Installed specialized local-AI model {InstallationId} with {CapabilityCount} capability binding(s); model identity and path were omitted from logs.", installationId, installation.Capabilities.Count);
             return installation;
@@ -687,8 +750,9 @@ public sealed partial class LocalAiRuntimeService(
     /// <param name="variant">Variant value supplied to the local AI runtime operation and used when producing its result.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>The local AI model installation produced by the operation.</returns>
-    public async Task<LocalAiModelInstallation> InstallOpenAiWhisperAsync(string sourceArchivePath, string variant, bool userConfirmed, CancellationToken cancellationToken = default)
+    public async Task<LocalAiModelInstallation> InstallOpenAiWhisperAsync(string sourceArchivePath, string variant, bool userConfirmed, CancellationToken cancellationToken = default, IProgress<string>? progress = null)
     {
     try
     {
@@ -712,17 +776,19 @@ public sealed partial class LocalAiRuntimeService(
             var environmentPython = RequireExistingFile(ResolveEnvironmentPython(environmentPath), "Managed environment Python executable");
             var supportProfile = GetPackageProfiles().FirstOrDefault(item => item.Key.Equals("whisper-runtime", StringComparison.OrdinalIgnoreCase))
                 ?? throw new InvalidOperationException("The PythonCore package profile is missing the required 'whisper-runtime' profile.");
-            await InstallPackagesAsync(supportProfile, cancellationToken).ConfigureAwait(false);
+            await InstallPackagesAsync(supportProfile, cancellationToken, progress).ConfigureAwait(false);
+            ReportInstallProgress(progress, "Checking PyTorch in the managed environment…");
             var torchProbe = await RunProcessAsync(environmentPython, ["-c", "import torch; print(torch.__version__)"], environmentPath, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
             if (torchProbe.ExitCode != 0)
                 throw new InvalidOperationException("OpenAI Whisper requires PyTorch. Install the PyTorch backend appropriate for this machine from the Python capability profiles before installing Whisper.");
 
+            ReportInstallProgress(progress, "Installing Whisper from the reviewed source archive…");
             var sourceInstall = await RunProcessAsync(
                 environmentPython,
-                ["-m", "pip", "install", "--disable-pip-version-check", "--no-deps", fullSourcePath],
+                ["-u", "-m", "pip", "install", "--disable-pip-version-check", "--progress-bar", "off", "--no-deps", fullSourcePath],
                 environmentPath,
                 TimeSpan.FromMinutes(30),
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken, progress, "Whisper source").ConfigureAwait(false);
             EnsureProcessSuccess(sourceInstall, "OpenAI Whisper source installation");
 
             var modelRoot = ResolveModelRoot(CurrentConfig());
@@ -741,6 +807,7 @@ public sealed partial class LocalAiRuntimeService(
             var promoted = false;
             try
             {
+                ReportInstallProgress(progress, $"Downloading Whisper {modelName} weights…");
                 var download = await RunBridgeProcessAsync("openai_whisper_download", new Dictionary<string, object?>
                 {
                     ["model_name"] = modelName,
@@ -766,6 +833,7 @@ public sealed partial class LocalAiRuntimeService(
                     RuntimeModelName = modelName,
                     InstalledAtUtc = DateTime.UtcNow
                 };
+                ReportInstallProgress(progress, "Registering Whisper and its Python toolchain…");
                 SaveManifest(modelRoot, installation);
                 await EnsureManagedPythonToolchainAsync(modelName, cancellationToken).ConfigureAwait(false);
                 logger.LogInformation("Installed OpenAI Whisper variant through the reviewed GitHub/Python path; variant, source path and model path were omitted from logs.");
@@ -1342,8 +1410,9 @@ public sealed partial class LocalAiRuntimeService(
     /// </summary>
     /// <param name="profile">Profile value supplied to the local AI runtime operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task InstallPackagesAsync(LocalAiPackageProfile profile, CancellationToken cancellationToken)
+    private async Task InstallPackagesAsync(LocalAiPackageProfile profile, CancellationToken cancellationToken, IProgress<string>? progress = null)
     {
     try
     {
@@ -1356,10 +1425,12 @@ public sealed partial class LocalAiRuntimeService(
                 throw new InvalidOperationException($"Python package profile '{profile.Key}' contains no packages.");
             var environmentPath = ResolveEnvironmentPath(CurrentConfig());
             var environmentPython = RequireExistingFile(ResolveEnvironmentPython(environmentPath), "Managed environment Python executable");
-            var arguments = new List<string> { "-m", "pip", "install", "--disable-pip-version-check" };
+            var arguments = new List<string> { "-u", "-m", "pip", "install", "--disable-pip-version-check", "--progress-bar", "off" };
             arguments.AddRange(profile.Packages.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()));
-            var result = await RunProcessAsync(environmentPython, arguments, environmentPath, TimeSpan.FromMinutes(45), cancellationToken).ConfigureAwait(false);
+            ReportInstallProgress(progress, $"Resolving packages for {profile.DisplayName}…");
+            var result = await RunProcessAsync(environmentPython, arguments, environmentPath, TimeSpan.FromMinutes(45), cancellationToken, progress, profile.DisplayName).ConfigureAwait(false);
             EnsureProcessSuccess(result, $"Python package profile '{profile.Key}' installation");
+            ReportInstallProgress(progress, $"Python package profile {profile.DisplayName} is ready.");
             logger.LogInformation("Installed Python package profile {ProfileKey}; package output and environment path were omitted from logs.", profile.Key);
     
     }
@@ -1946,6 +2017,14 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
+    /// <inheritdoc />
+    public string GetManagedPythonExecutable()
+    {
+        var environmentPath = ResolveEnvironmentPath(CurrentConfig());
+        var executable = ResolveEnvironmentPython(environmentPath);
+        return RequireExistingFile(executable, "Managed environment Python executable. Create the environment in Install → Toolchains");
+    }
+
 
     /// <summary>
     /// Performs require existing file as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -2029,8 +2108,10 @@ public sealed partial class LocalAiRuntimeService(
     /// <param name="workingDirectory">Working directory value supplied to the local AI runtime operation and used when producing its result.</param>
     /// <param name="timeout">Timeout value supplied to the local AI runtime operation and used when producing its result.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
+    /// <param name="packageOperation">Display name used for package progress. Null disables package progress reporting.</param>
     /// <returns>The process result produced by the operation.</returns>
-    private async Task<ProcessResult> RunProcessAsync(string executable, IEnumerable<string> arguments, string? workingDirectory, TimeSpan timeout, CancellationToken cancellationToken)
+    private async Task<ProcessResult> RunProcessAsync(string executable, IEnumerable<string> arguments, string? workingDirectory, TimeSpan timeout, CancellationToken cancellationToken, IProgress<string>? progress = null, string? packageOperation = null)
     {
     try
     {
@@ -2050,7 +2131,9 @@ public sealed partial class LocalAiRuntimeService(
                 process.StartInfo.ArgumentList.Add(argument);
             if (!process.Start())
                 throw new InvalidOperationException("The reviewed Python process could not be started.");
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var stdoutTask = packageOperation is null
+                ? process.StandardOutput.ReadToEndAsync(cancellationToken)
+                : ReadPackageOutputAsync(process.StandardOutput, packageOperation, progress, cancellationToken);
             var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
             using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutSource.CancelAfter(timeout);
@@ -2077,6 +2160,30 @@ public sealed partial class LocalAiRuntimeService(
         throw;
     }
 }
+
+    private async Task<string> ReadPackageOutputAsync(StreamReader output, string operation, IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        var text = new StringBuilder();
+        string? previousPhase = null;
+        while (await output.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        {
+            text.AppendLine(line);
+            var phase = line.TrimStart();
+            var status = phase switch
+            {
+                _ when phase.StartsWith("Downloading ", StringComparison.Ordinal) => "Downloading packages",
+                _ when phase.StartsWith("Building wheel for ", StringComparison.Ordinal) => "Building packages",
+                _ when phase.StartsWith("Installing collected packages", StringComparison.Ordinal) => "Installing packages",
+                _ => null
+            };
+            if (status is not null && status != previousPhase)
+            {
+                ReportInstallProgress(progress, $"{status} for {operation}…");
+                previousPhase = status;
+            }
+        }
+        return text.ToString();
+    }
 
     /// <summary>
     /// Performs trim output as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.

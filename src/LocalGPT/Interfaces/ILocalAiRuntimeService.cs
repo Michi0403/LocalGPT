@@ -48,6 +48,18 @@ public interface ILocalAiRuntimeService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The local AI runtime status produced by the operation.</returns>
     Task<LocalAiRuntimeStatus> GetStatusAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Returns the existing Python executable in the configured managed environment.</summary>
+    /// <returns>The absolute interpreter path.</returns>
+    string GetManagedPythonExecutable();
+
+    /// <summary>Installs training dependencies in the managed environment while preserving its PyTorch build.</summary>
+    /// <param name="useMlx">Whether to install the native Apple Silicon backend.</param>
+    /// <param name="userConfirmed">Whether the operator approved installation.</param>
+    /// <param name="progress">Optional observer for package preparation.</param>
+    /// <param name="cancellationToken">Cancellation token for package preparation.</param>
+    /// <returns>A task that completes after the requested dependencies are installed.</returns>
+    Task InstallTrainingDependenciesAsync(bool useMlx, bool userConfirmed, IProgress<string>? progress = null, CancellationToken cancellationToken = default);
     /// <summary>
     /// Performs probe as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -80,21 +92,26 @@ public interface ILocalAiRuntimeService
     /// </summary>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    Task CreateManagedEnvironmentAsync(bool userConfirmed, CancellationToken cancellationToken = default);
+    Task CreateManagedEnvironmentAsync(bool userConfirmed, CancellationToken cancellationToken = default, IProgress<string>? progress = null);
     /// <summary>
     /// Performs install package profile as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <param name="profileKey">Profile key value supplied to the local AI runtime operation and used when producing its result.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>A task that completes when the operation has finished.</returns>
-    Task InstallPackageProfileAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default);
+    Task InstallPackageProfileAsync(string profileKey, bool userConfirmed, CancellationToken cancellationToken = default, IProgress<string>? progress = null);
     /// <summary>
     /// Retrieves package profiles as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <returns>The collection produced by the operation.</returns>
     IReadOnlyList<LocalAiPackageProfile> GetPackageProfiles();
+
+    /// <summary>Returns whether LocalGPT has a runtime adapter for the capability.</summary>
+    bool SupportsModelCapability(LocalAiCapability capability);
     /// <summary>
     /// Performs format package list as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -118,8 +135,9 @@ public interface ILocalAiRuntimeService
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>The local AI model installation produced by the operation.</returns>
-    Task<LocalAiModelInstallation> InstallModelAsync(LocalAiModelInstallRequest request, bool userConfirmed, CancellationToken cancellationToken = default);
+    Task<LocalAiModelInstallation> InstallModelAsync(LocalAiModelInstallRequest request, bool userConfirmed, CancellationToken cancellationToken = default, IProgress<string>? progress = null);
     /// <summary>
     /// Performs install open AI whisper as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
@@ -127,8 +145,9 @@ public interface ILocalAiRuntimeService
     /// <param name="variant">Variant value supplied to the local AI runtime operation and used when producing its result.</param>
     /// <param name="userConfirmed">Value indicating whether user confirmed should apply to this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional reporter for installation phases and package progress.</param>
     /// <returns>The local AI model installation produced by the operation.</returns>
-    Task<LocalAiModelInstallation> InstallOpenAiWhisperAsync(string sourceArchivePath, string variant, bool userConfirmed, CancellationToken cancellationToken = default);
+    Task<LocalAiModelInstallation> InstallOpenAiWhisperAsync(string sourceArchivePath, string variant, bool userConfirmed, CancellationToken cancellationToken = default, IProgress<string>? progress = null);
     /// <summary>
     /// Removes model as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

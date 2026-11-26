@@ -335,6 +335,7 @@ namespace LocalGPT.Services
     /// <param name="ExpectedSectionCount">Number of numbered answer sections expected from a composite assignment.</param>
     /// <param name="RequireEmbeddedJsonObject">Whether at least one complete embedded JSON object is required by the task contract.</param>
     /// <param name="EnforceRoleExecution">Whether a narrow generic capability refusal receives one bounded same-role retry.</param>
+    /// <param name="ExpectedJson">Expected values for deterministic scenario scoring, kept outside the provider prompt.</param>
     private sealed record BenchmarkTask(
         string Name,
         string Prompt,
@@ -342,7 +343,8 @@ namespace LocalGPT.Services
         bool ExpectJson = false,
         int ExpectedSectionCount = 0,
         bool RequireEmbeddedJsonObject = false,
-        bool EnforceRoleExecution = false);
+        bool EnforceRoleExecution = false,
+        IReadOnlyDictionary<string, JsonElement>? ExpectedJson = null);
     /// <summary>
     /// Represents a benchmark profile helper type nested within <see cref="ProviderModelBenchmarkService"/>, grouping the state or behavior used only by that containing workflow.
     /// </summary>

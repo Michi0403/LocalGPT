@@ -1,7 +1,5 @@
 using LocalGPT.BusinessObjects;
-using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 using LocalGPT.Interfaces;
-using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -17,8 +15,8 @@ namespace LocalGPT.Services;
 /// </summary>
 /// <param name="runtimePolicy">Runtime policy service that owns every tunable value of this workflow.</param>
 /// <param name="paths">Application path service used to locate the per-user data folder that holds the training root.</param>
-/// <param name="runtime">Local AI runtime service whose Python discovery is reused when no executable override is configured.</param>
-/// <param name="options">Configuration monitor that exposes the Python executable already bound to the LocalGPT runtime.</param>
+/// <param name="runtime">Local AI runtime service that resolves the managed Python environment used for package installation and training.</param>
+/// <param name="pythonJobs">Owner of Python process capacity, progress and cancellation.</param>
 /// <param name="platform">Platform runtime service that owns host path comparison semantics.</param>
 /// <param name="environment">Web host environment used to resolve the packaged trainer script.</param>
 /// <param name="teams">Council team configuration service that provides the configured teams and role names.</param>
@@ -31,7 +29,7 @@ public sealed partial class ModelTrainingService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ILocalGptApplicationPathService paths,
     ILocalAiRuntimeService runtime,
-    IOptionsMonitor<LocalGptConfigurationRoot> options,
+    IPythonJobOrchestrationService pythonJobs,
     IPlatformRuntimeService platform,
     IWebHostEnvironment environment,
     ICouncilTeamConfigurationService teams,
@@ -48,11 +46,19 @@ public sealed partial class ModelTrainingService(
     /// <param name="loraRank">LoRA rank for the estimate, or null to use the rank of the runtime value ModelTrainingDefaultsJson.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The JSON object printed by the trainer probe.</returns>
-    public async Task<string> ProbeAsync(double? parametersBillions, int? loraRank, CancellationToken cancellationToken = default)
+    public Task<string> ProbeAsync(double? parametersBillions, int? loraRank, CancellationToken cancellationToken = default)
+        => ProbeBackendAsync(parametersBillions, loraRank, null, cancellationToken);
+
+    private async Task<string> ProbeBackendAsync(double? parametersBillions, int? loraRank, string? backend, CancellationToken cancellationToken)
     {
         try
         {
             var arguments = new List<string> { "probe" };
+            if (backend is not null)
+            {
+                arguments.Add("--backend");
+                arguments.Add(backend);
+            }
             if (parametersBillions is not null)
             {
                 var rank = loraRank ?? ReadTrainingDefaults()["lora_rank"]?.GetValue<int>()
@@ -67,7 +73,10 @@ public sealed partial class ModelTrainingService(
 
             var timeout = TimeSpan.FromSeconds(runtimePolicy.GetInt("ModelTrainingProbeTimeoutSeconds"));
             var run = await RunTrainerAsync(arguments, timeout, "ModelTrainingProbeTimeoutSeconds", cancellationToken).ConfigureAwait(false);
-            return ParseTrainerResult("probe", run.ExitCode, run.LastLine);
+            var probe = JsonNode.Parse(ParseTrainerResult("probe", run.ExitCode, run.LastLine))!.AsObject();
+            probe["python_source"] = string.IsNullOrWhiteSpace(runtimePolicy.GetString("ModelTrainingPythonExecutableOverride"))
+                ? "LocalGPT managed environment" : "ModelTrainingPythonExecutableOverride";
+            return probe.ToJsonString();
         }
         catch (Exception __serviceMethodException)
         {
@@ -75,6 +84,42 @@ public sealed partial class ModelTrainingService(
                 logger.LogDebug(__serviceMethodException, $"Service method {nameof(ModelTrainingService)}.{nameof(ProbeAsync)} was canceled.");
             else
                 logger.LogError(__serviceMethodException, $"Service method {nameof(ModelTrainingService)}.{nameof(ProbeAsync)} failed.");
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<string> PrepareAsync(bool userConfirmed, IProgress<string>? progress = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!userConfirmed)
+                throw new InvalidOperationException("Approve preparing the LoRA training environment first.");
+            if (!string.IsNullOrWhiteSpace(runtimePolicy.GetString("ModelTrainingPythonExecutableOverride")))
+                throw new InvalidOperationException("Training uses ModelTrainingPythonExecutableOverride. Use Check training readiness to inspect that interpreter, or clear the override in system settings to prepare LocalGPT's managed environment.");
+
+            var status = await runtime.GetStatusAsync(cancellationToken).ConfigureAwait(false);
+            if (!status.VirtualEnvironmentExists)
+            {
+                if (!status.PythonExecutableExists)
+                    throw new InvalidOperationException("Select or install Python under Install → Toolchains, then return here to prepare training.");
+                await runtime.CreateManagedEnvironmentAsync(userConfirmed, cancellationToken, progress).ConfigureAwait(false);
+            }
+
+            var useMlx = platform.ToolchainPlatform == ToolchainPlatformKind.MacOS
+                && RuntimeInformation.OSArchitecture == Architecture.Arm64;
+            await runtime.InstallTrainingDependenciesAsync(useMlx, userConfirmed, progress, cancellationToken).ConfigureAwait(false);
+            progress?.Report("Checking the installed training APIs and available devices…");
+            return await ProbeBackendAsync(null, null, useMlx ? "mlx" : null, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException exception)
+        {
+            logger.LogDebug(exception, "LoRA training preparation was canceled.");
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning("LoRA training preparation failed with {ExceptionType}.", exception.GetType().Name);
             throw;
         }
     }
@@ -130,9 +175,8 @@ public sealed partial class ModelTrainingService(
 
             var jobFolder = Path.Combine(ResolveTrainingRoot(), $"{key}-{Guid.NewGuid():N}");
             Directory.CreateDirectory(jobFolder);
-            var encoding = new UTF8Encoding(false);
-            await File.WriteAllLinesAsync(Path.Combine(jobFolder, runtimePolicy.GetString("ModelTrainingTrainFileName")), trainSamples.Select(sample => sample.ToJsonString()), encoding, cancellationToken).ConfigureAwait(false);
-            await File.WriteAllLinesAsync(Path.Combine(jobFolder, runtimePolicy.GetString("ModelTrainingEvalFileName")), evalSamples.Select(sample => sample.ToJsonString()), encoding, cancellationToken).ConfigureAwait(false);
+            await WritePreparedDatasetAsync(jobFolder, trainSamples.Select(sample => sample.ToJsonString()),
+                evalSamples.Select(sample => sample.ToJsonString()), null, cancellationToken).ConfigureAwait(false);
             logger.LogInformation("Prepared identity training job {JobFolder} with {TrainSamples} training and {EvalSamples} evaluation samples.", jobFolder, trainSamples.Count, evalSamples.Count);
             return (jobFolder, trainSamples.Count, evalSamples.Count);
         }
@@ -177,23 +221,84 @@ public sealed partial class ModelTrainingService(
                 throw new InvalidOperationException(Directory.EnumerateFiles(baseFolder, "*.gguf").Any()
                     ? "GGUF inference files cannot be trained; use the original Hugging Face safetensors checkpoint as baseModelFolder."
                     : "baseModelFolder contains no *.safetensors weights.");
-            var outputFolder = Path.Combine(job, runtimePolicy.GetString("ModelTrainingOutputFolderName"));
-            if (Directory.Exists(outputFolder) || File.Exists(outputFolder))
-                throw new InvalidOperationException("The output folder of this job already exists (runtime value ModelTrainingOutputFolderName); a trained model is never overwritten, prepare a new job.");
-
+            var attemptId = Guid.NewGuid();
+            var attemptFolder = Path.Combine(job, "attempts", attemptId.ToString("N"));
+            Directory.CreateDirectory(attemptFolder);
+            var outputFolder = Path.Combine(attemptFolder, runtimePolicy.GetString("ModelTrainingOutputFolderName"));
             var config = ReadTrainingDefaults();
             config.Remove("eval_fraction");
             config["base_model"] = baseFolder;
-            config["train_dataset"] = trainFile;
-            config["eval_dataset"] = evalFile;
+            var trainSnapshot = Path.Combine(attemptFolder, Path.GetFileName(trainFile));
+            var evalSnapshot = Path.Combine(attemptFolder, Path.GetFileName(evalFile));
+            config["train_dataset"] = trainSnapshot;
+            config["eval_dataset"] = evalSnapshot;
             config["output_dir"] = outputFolder;
-            var configFile = Path.Combine(job, runtimePolicy.GetString("ModelTrainingConfigFileName"));
-            await File.WriteAllTextAsync(configFile, config.ToJsonString(), new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+            var configFile = Path.Combine(attemptFolder, runtimePolicy.GetString("ModelTrainingConfigFileName"));
+            var submittedAtUtc = DateTime.UtcNow;
+            var statePath = Path.Combine(attemptFolder, "attempt.json");
+            async Task WriteStateAsync(string status)
+            {
+                var temporary = statePath + ".tmp";
+                await File.WriteAllTextAsync(temporary, JsonSerializer.Serialize(new
+                {
+                    attemptId, status, submittedAtUtc, updatedAtUtc = DateTime.UtcNow
+                }), CancellationToken.None).ConfigureAwait(false);
+                File.Move(temporary, statePath, overwrite: true);
+            }
 
-            logger.LogInformation("Starting identity training for job {JobFolder}.", job);
-            var timeout = TimeSpan.FromSeconds(runtimePolicy.GetInt("ModelTrainingTrainTimeoutSeconds"));
-            var run = await RunTrainerAsync(["train", configFile], timeout, "ModelTrainingTrainTimeoutSeconds", cancellationToken).ConfigureAwait(false);
-            return ParseTrainerResult("training", run.ExitCode, run.LastLine);
+            await WriteStateAsync("queued").ConfigureAwait(false);
+            try
+            {
+                var dataset = await InspectDatasetAsync(job, trainFile, evalFile, cancellationToken).ConfigureAwait(false);
+                File.Copy(trainFile, trainSnapshot);
+                File.Copy(evalFile, evalSnapshot);
+                if (dataset.TrainSha256 != await HashTrainingFileAsync(trainSnapshot, cancellationToken).ConfigureAwait(false)
+                    || dataset.EvaluationSha256 != await HashTrainingFileAsync(evalSnapshot, cancellationToken).ConfigureAwait(false))
+                    throw new InvalidOperationException("The prepared dataset changed while creating the training attempt.");
+                await File.WriteAllTextAsync(configFile, config.ToJsonString(), new UTF8Encoding(false), cancellationToken).ConfigureAwait(false);
+                var result = await pythonJobs.RunPackagedTrainingAsync(async (report, token) =>
+                {
+                    await WriteStateAsync("running").ConfigureAwait(false);
+                    report(new PythonTrainingProgress("Identifying the base checkpoint", null, null));
+                    var baseFiles = await InspectTrainingCheckpointAsync(baseFolder, token).ConfigureAwait(false);
+                    var timeout = TimeSpan.FromSeconds(runtimePolicy.GetInt("ModelTrainingTrainTimeoutSeconds"));
+                    var run = await RunTrainerAsync(["train", configFile], timeout, "ModelTrainingTrainTimeoutSeconds", token, report).ConfigureAwait(false);
+                    var response = JsonNode.Parse(ParseTrainerResult("training", run.ExitCode, run.LastLine))!.AsObject();
+                    if (response["status"]?.GetValue<string>() != "adapter_ready")
+                        throw new InvalidOperationException("The trainer exited without confirming that the adapter is ready.");
+                    var adapterPath = Path.GetFullPath(response["adapter_path"]?.GetValue<string>()
+                        ?? throw new InvalidOperationException("The trainer did not return an adapter folder."));
+                    if (!platform.IsSameOrDescendantPath(outputFolder, adapterPath))
+                        throw new InvalidOperationException("The trainer returned an adapter folder outside this attempt.");
+                    report(new PythonTrainingProgress("Recording adapter provenance", null, null));
+                    var adapterFiles = await InspectTrainingCheckpointAsync(adapterPath, token).ConfigureAwait(false);
+                    var verifiedBaseFiles = await InspectTrainingCheckpointAsync(baseFolder, token).ConfigureAwait(false);
+                    if (!baseFiles.SequenceEqual(verifiedBaseFiles))
+                        throw new InvalidOperationException("The base checkpoint changed during training.");
+                    var provenance = JsonSerializer.Serialize(new
+                    {
+                        attemptId, Dataset = dataset, BaseFiles = baseFiles, AdapterFiles = adapterFiles,
+                        ConfigurationSha256 = await HashTrainingFileAsync(configFile, token).ConfigureAwait(false)
+                    });
+                    await File.WriteAllTextAsync(Path.Combine(attemptFolder, "provenance.json"), provenance, token).ConfigureAwait(false);
+                    response["attempt_id"] = attemptId;
+                    await WriteStateAsync("completed").ConfigureAwait(false);
+                    return response.ToJsonString();
+                }, cancellationToken).ConfigureAwait(false);
+                return result;
+            }
+            catch (Exception exception)
+            {
+                try
+                {
+                    await WriteStateAsync(exception is OperationCanceledException ? "cancelled" : "failed").ConfigureAwait(false);
+                }
+                catch (Exception stateException)
+                {
+                    logger.LogWarning(stateException, "Could not save the terminal status for training attempt {AttemptId}.", attemptId);
+                }
+                throw;
+            }
         }
         catch (Exception __serviceMethodException)
         {
@@ -407,11 +512,10 @@ public sealed partial class ModelTrainingService(
     }
 
     /// <summary>
-    /// Resolves the Python executable: the runtime value override first, then the executable bound to the LocalGPT runtime, then the first discovered Python.
+    /// Resolves the explicit training override or the LocalGPT-managed interpreter.
     /// </summary>
-    /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The path of an existing Python executable.</returns>
-    private async Task<string> ResolvePythonExecutableAsync(CancellationToken cancellationToken)
+    private string ResolvePythonExecutable()
     {
         try
         {
@@ -422,38 +526,33 @@ public sealed partial class ModelTrainingService(
                     throw new FileNotFoundException("The Python executable of the runtime value ModelTrainingPythonExecutableOverride does not exist.", configuredOverride);
                 return configuredOverride;
             }
-            var bound = options.CurrentValue.PythonCore?.PythonExecutable;
-            if (!string.IsNullOrWhiteSpace(bound) && File.Exists(bound))
-                return bound;
-            var candidates = await runtime.DiscoverPythonAsync(cancellationToken).ConfigureAwait(false);
-            var candidate = candidates.FirstOrDefault(item => File.Exists(item.ExecutablePath));
-            return candidate?.ExecutablePath
-                ?? throw new InvalidOperationException("No Python was found; configure Python for LocalGPT (localai.python.configure) or set the runtime value ModelTrainingPythonExecutableOverride.");
+            return runtime.GetManagedPythonExecutable();
         }
         catch (Exception __serviceMethodException)
         {
             if (__serviceMethodException is OperationCanceledException)
-                logger.LogDebug(__serviceMethodException, $"Service method {nameof(ModelTrainingService)}.{nameof(ResolvePythonExecutableAsync)} was canceled.");
+                logger.LogDebug(__serviceMethodException, $"Service method {nameof(ModelTrainingService)}.{nameof(ResolvePythonExecutable)} was canceled.");
             else
-                logger.LogError(__serviceMethodException, $"Service method {nameof(ModelTrainingService)}.{nameof(ResolvePythonExecutableAsync)} failed.");
+                logger.LogError(__serviceMethodException, $"Service method {nameof(ModelTrainingService)}.{nameof(ResolvePythonExecutable)} failed.");
             throw;
         }
     }
 
     /// <summary>
-    /// Starts the trainer script with a scrubbed environment, streams its output to the log and stops its process tree when the timeout or the caller cancels.
+    /// Starts the trainer with a scrubbed environment and reports validated progress until completion or cancellation.
     /// </summary>
     /// <param name="trainerArguments">Arguments passed to the trainer script after its path.</param>
     /// <param name="timeout">Maximum run time.</param>
     /// <param name="timeoutValueName">Name of the runtime value that owns the timeout, used in the timeout message.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional recipient for validated trainer phases and step counts.</param>
     /// <returns>The process exit code and the last non-empty line the trainer printed on standard output.</returns>
-    private async Task<(int ExitCode, string LastLine)> RunTrainerAsync(IReadOnlyList<string> trainerArguments, TimeSpan timeout, string timeoutValueName, CancellationToken cancellationToken)
+    private async Task<(int ExitCode, string LastLine)> RunTrainerAsync(IReadOnlyList<string> trainerArguments, TimeSpan timeout, string timeoutValueName, CancellationToken cancellationToken, Action<PythonTrainingProgress>? progress = null)
     {
         try
         {
             var script = ResolveTrainerScript();
-            var python = await ResolvePythonExecutableAsync(cancellationToken).ConfigureAwait(false);
+            var python = ResolvePythonExecutable();
             using var process = new Process
             {
                 StartInfo = new ProcessStartInfo
@@ -480,8 +579,8 @@ public sealed partial class ModelTrainingService(
             timeoutSource.CancelAfter(timeout);
             if (!process.Start())
                 throw new InvalidOperationException("The trainer Python process could not be started.");
-            var standardOutput = ReadTrainerOutputAsync(process.StandardOutput, LogLevel.Information, timeoutSource.Token);
-            var standardError = ReadTrainerOutputAsync(process.StandardError, LogLevel.Debug, timeoutSource.Token);
+            var standardOutput = ReadTrainerOutputAsync(process.StandardOutput, timeoutSource.Token, progress);
+            var standardError = ReadTrainerOutputAsync(process.StandardError, timeoutSource.Token);
             try
             {
                 await process.WaitForExitAsync(timeoutSource.Token).ConfigureAwait(false);
@@ -495,10 +594,19 @@ public sealed partial class ModelTrainingService(
                 {
                     if (!process.HasExited)
                         process.Kill(entireProcessTree: true);
+                    await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception killException)
                 {
                     logger.LogDebug(killException, "Stopping the trainer process tree failed.");
+                }
+                try
+                {
+                    await Task.WhenAll(standardOutput, standardError).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // The stream reads share the process timeout token.
                 }
                 if (!cancellationToken.IsCancellationRequested)
                     throw new InvalidOperationException($"The trainer exceeded the runtime value {timeoutValueName} and was stopped.");
@@ -516,13 +624,13 @@ public sealed partial class ModelTrainingService(
     }
 
     /// <summary>
-    /// Reads one trainer output stream line by line, logs every non-empty line and remembers the last one.
+    /// Reads trainer output without persisting raw third-party diagnostics or model content.
     /// </summary>
     /// <param name="reader">Redirected output stream of the trainer process.</param>
-    /// <param name="level">Log level used for each line.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="progress">Optional recipient for recognized progress events.</param>
     /// <returns>The last non-empty line, or an empty string when the stream was empty.</returns>
-    private async Task<string> ReadTrainerOutputAsync(StreamReader reader, LogLevel level, CancellationToken cancellationToken)
+    private async Task<string> ReadTrainerOutputAsync(StreamReader reader, CancellationToken cancellationToken, Action<PythonTrainingProgress>? progress = null)
     {
         try
         {
@@ -533,7 +641,8 @@ public sealed partial class ModelTrainingService(
                 if (string.IsNullOrWhiteSpace(line))
                     continue;
                 lastLine = line;
-                logger.Log(level, "Model training trainer output: {Line}", line);
+                if (progress is not null && TryReadTrainerProgress(line) is { } update)
+                    progress(update);
             }
             return lastLine;
         }
@@ -544,6 +653,42 @@ public sealed partial class ModelTrainingService(
             else
                 logger.LogError(__serviceMethodException, $"Service method {nameof(ModelTrainingService)}.{nameof(ReadTrainerOutputAsync)} failed.");
             throw;
+        }
+    }
+
+    /// <summary>Reads an allowlisted progress event without retaining arbitrary trainer output.</summary>
+    /// <param name="line">One line emitted by the trainer.</param>
+    /// <returns>A recognized progress update, or null when the line carries other output.</returns>
+    private PythonTrainingProgress? TryReadTrainerProgress(string line)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(line);
+            var value = document.RootElement;
+            if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty("event", out var name)
+                || name.ValueKind != JsonValueKind.String)
+                return null;
+            var phase = name.GetString() switch
+            {
+                "preflight" => "Memory preflight",
+                "start" => "Starting training",
+                "loading_model" => "Loading model",
+                "baseline_eval" => "Evaluating base model",
+                "progress" => "Training",
+                "checkpoint" => "Saving checkpoint",
+                "eval" => "Evaluating adapter",
+                "result" => "Adapter ready",
+                _ => null
+            };
+            if (phase is null)
+                return null;
+            int? Number(string key) => value.TryGetProperty(key, out var field) && field.ValueKind == JsonValueKind.Number
+                && field.TryGetInt32(out var number) && number >= 0 ? number : null;
+            return new PythonTrainingProgress(phase, Number("step"), Number("max_steps"));
+        }
+        catch (JsonException)
+        {
+            return null;
         }
     }
 

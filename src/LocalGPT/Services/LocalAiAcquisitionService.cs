@@ -141,7 +141,7 @@ public sealed class LocalAiAcquisitionService(
     /// Performs install known model as part of the local AI acquisition service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    public async Task<LocalAiModelInstallation> InstallKnownModelAsync(LocalAiKnownModelInstallRequest request, CancellationToken cancellationToken = default)
+    public async Task<LocalAiModelInstallation> InstallKnownModelAsync(LocalAiKnownModelInstallRequest request, CancellationToken cancellationToken = default, IProgress<string>? progress = null)
     {
         try
         {
@@ -153,9 +153,10 @@ public sealed class LocalAiAcquisitionService(
                 throw new NotSupportedException("This reviewed project is available for direct source download, but this LocalGPT release does not yet expose an executable runtime adapter for it.");
             var variant = source.Variants.FirstOrDefault(item => item.Key.Equals(request.Variant?.Trim(), StringComparison.OrdinalIgnoreCase))
                 ?? throw new ArgumentException("Select one reviewed model variant from the catalog entry.", nameof(request));
+            progress?.Report("Downloading the reviewed source archive…");
             var archive = await DownloadSourceAsync(source.Key, userConfirmed: true, cancellationToken).ConfigureAwait(false);
             if (source.Adapter.Equals("openai-whisper", StringComparison.OrdinalIgnoreCase))
-                return await runtime.InstallOpenAiWhisperAsync(archive.LocalPath, variant.Key, userConfirmed: true, cancellationToken).ConfigureAwait(false);
+                return await runtime.InstallOpenAiWhisperAsync(archive.LocalPath, variant.Key, userConfirmed: true, cancellationToken, progress).ConfigureAwait(false);
             throw new NotSupportedException("The selected direct local-AI project does not have an executable installer adapter in this release.");
         }
         catch (OperationCanceledException exception)

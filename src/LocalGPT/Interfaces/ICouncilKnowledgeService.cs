@@ -12,6 +12,11 @@ namespace LocalGPT.Interfaces
         /// </summary>
         /// <value>The database path value exposed by <see cref="ICouncilKnowledgeService"/>.</value>
         string DatabasePath { get; }
+        /// <summary>Reports whether a knowledge revision is eligible for training and supplies its complete content digest.</summary>
+        /// <param name="entry">The candidate knowledge revision.</param>
+        /// <param name="snapshotUtc">The time used to check that the revision is current.</param>
+        /// <returns>The content SHA-256 or the reason the revision cannot be selected.</returns>
+        (string? ContentSha256, string? IneligibleReason) InspectTrainingRevision(CouncilKnowledgeEntry entry, DateTime snapshotUtc);
         /// <summary>
         /// Ensures created as part of the council knowledge service workflow, applying the service's runtime policy, state management, and diagnostics as required.
         /// </summary>
