@@ -15,8 +15,26 @@ public sealed partial class LocalGptRuntimePolicySeedDataService
     {
         try
         {
+            using var scenario = typeof(LocalGptRuntimePolicySeedDataService).Assembly
+                .GetManifestResourceStream("LocalGPT.Nuts.DefaultTeamsScenario.json")
+                ?? throw new InvalidOperationException("The default NUTS benchmark scenario resource is missing.");
+            using var scenarioReader = new StreamReader(scenario);
             return
             [
+                new("NutsDefaultBenchmarkScenarioJson", scenarioReader.ReadToEnd(), "System.String"),
+                new("ModelTrainingAutoPreparationBackendsJson", """{"MacOS-Arm64":"mlx"}""", "System.String"),
+                new("ModelTrainingWorkerOptionsJson", """
+{
+  "async_weight_loading": false,
+  "isolated_worker_exit": true
+}
+""", "System.String"),
+                new("ModelTrainingMlxPackagesJson", """
+{"key":"lora-mlx","displayName":"MLX LoRA training","packages":["mlx","mlx-lm"]}
+""", "System.String"),
+                new("ModelTrainingPyTorchPackagesJson", """
+{"key":"lora-pytorch","displayName":"PyTorch LoRA training","packages":["transformers>=4.55","peft","trl","datasets","accelerate>=1.10"]}
+""", "System.String"),
                 new("ModelTrainingPythonExecutableOverride", "", "System.String"),
                 new("ModelTrainingTrainerScriptRelativePath", "Runtime/Python/localgpt_lora_trainer.py", "System.String"),
                 new("ModelTrainingRootFolderName", "ModelTraining", "System.String"),

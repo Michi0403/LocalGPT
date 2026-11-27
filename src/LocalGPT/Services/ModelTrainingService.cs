@@ -47,21 +47,20 @@ public sealed partial class ModelTrainingService(
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The JSON object printed by the trainer probe.</returns>
     public Task<string> ProbeAsync(double? parametersBillions, int? loraRank, CancellationToken cancellationToken = default)
-        => ProbeBackendAsync(parametersBillions, loraRank, null, cancellationToken);
+        => ProbeBackendAsync(parametersBillions, loraRank, ReadTrainingDefaults(), cancellationToken);
 
-    private async Task<string> ProbeBackendAsync(double? parametersBillions, int? loraRank, string? backend, CancellationToken cancellationToken)
+    private async Task<string> ProbeBackendAsync(double? parametersBillions, int? loraRank, JsonObject defaults, CancellationToken cancellationToken)
     {
         try
         {
-            var arguments = new List<string> { "probe" };
-            if (backend is not null)
-            {
-                arguments.Add("--backend");
-                arguments.Add(backend);
-            }
+            var backend = defaults["backend"]?.GetValue<string>()
+                ?? throw new InvalidOperationException("Set backend in the ModelTrainingDefaultsJson system setting.");
+            var arguments = new List<string> { "probe", "--backend", backend };
+            if (defaults["allow_cpu"]?.GetValue<bool>() == true)
+                arguments.Add("--allow-cpu");
             if (parametersBillions is not null)
             {
-                var rank = loraRank ?? ReadTrainingDefaults()["lora_rank"]?.GetValue<int>()
+                var rank = loraRank ?? defaults["lora_rank"]?.GetValue<int>()
                     ?? throw new InvalidOperationException("The runtime value ModelTrainingDefaultsJson has no lora_rank for the memory estimate.");
                 arguments.Add("--parameters-billions");
                 arguments.Add(parametersBillions.Value.ToString(CultureInfo.InvariantCulture));
@@ -106,11 +105,24 @@ public sealed partial class ModelTrainingService(
                 await runtime.CreateManagedEnvironmentAsync(userConfirmed, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            var useMlx = platform.ToolchainPlatform == ToolchainPlatformKind.MacOS
-                && RuntimeInformation.OSArchitecture == Architecture.Arm64;
+            var defaults = ReadTrainingDefaults();
+            progress?.Report("Checking the training backend in the managed Python environment…");
+            var initialProbe = await ProbeBackendAsync(null, null, defaults, cancellationToken).ConfigureAwait(false);
+            var probe = JsonNode.Parse(initialProbe)!.AsObject();
+            var backend = defaults["backend"]!.GetValue<string>();
+            if (probe["training_readiness"]?["ready"]?.GetValue<bool>() == true)
+                return initialProbe;
+            var preparationBackends = new Dictionary<string, string>(
+                runtimePolicy.GetJson<Dictionary<string, string>>("ModelTrainingAutoPreparationBackendsJson"),
+                StringComparer.OrdinalIgnoreCase);
+            var host = $"{platform.ToolchainPlatform}-{RuntimeInformation.ProcessArchitecture}";
+            var detected = probe["backend"]?.GetValue<string>();
+            if (backend == "auto")
+                backend = detected is "none" or "cpu" or null ? preparationBackends.GetValueOrDefault(host, detected ?? "none") : detected;
+            var useMlx = backend == "mlx";
             await runtime.InstallTrainingDependenciesAsync(useMlx, userConfirmed, progress, cancellationToken).ConfigureAwait(false);
             progress?.Report("Checking the installed training APIs and available devices…");
-            return await ProbeBackendAsync(null, null, useMlx ? "mlx" : null, cancellationToken).ConfigureAwait(false);
+            return await ProbeBackendAsync(null, null, defaults, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException exception)
         {
@@ -227,6 +239,12 @@ public sealed partial class ModelTrainingService(
             var outputFolder = Path.Combine(attemptFolder, runtimePolicy.GetString("ModelTrainingOutputFolderName"));
             var config = ReadTrainingDefaults();
             config.Remove("eval_fraction");
+            var workerOptions = runtimePolicy.GetJson<Dictionary<string, bool>>("ModelTrainingWorkerOptionsJson");
+            foreach (var key in new[] { "async_weight_loading", "isolated_worker_exit" })
+            {
+                if (workerOptions.TryGetValue(key, out var enabled))
+                    config[key] = enabled;
+            }
             config["base_model"] = baseFolder;
             var trainSnapshot = Path.Combine(attemptFolder, Path.GetFileName(trainFile));
             var evalSnapshot = Path.Combine(attemptFolder, Path.GetFileName(evalFile));
@@ -264,8 +282,9 @@ public sealed partial class ModelTrainingService(
                     var timeout = TimeSpan.FromSeconds(runtimePolicy.GetInt("ModelTrainingTrainTimeoutSeconds"));
                     var run = await RunTrainerAsync(["train", configFile], timeout, "ModelTrainingTrainTimeoutSeconds", token, report).ConfigureAwait(false);
                     var response = JsonNode.Parse(ParseTrainerResult("training", run.ExitCode, run.LastLine))!.AsObject();
-                    if (response["status"]?.GetValue<string>() != "adapter_ready")
-                        throw new InvalidOperationException("The trainer exited without confirming that the adapter is ready.");
+                    if (response["status"]?.GetValue<string>() != "adapter_ready"
+                        || response["adapter_verification"] is not JsonObject verification)
+                        throw new InvalidOperationException("The trainer exited without verifying that the saved adapter loads and runs.");
                     var adapterPath = Path.GetFullPath(response["adapter_path"]?.GetValue<string>()
                         ?? throw new InvalidOperationException("The trainer did not return an adapter folder."));
                     if (!platform.IsSameOrDescendantPath(outputFolder, adapterPath))
@@ -277,7 +296,7 @@ public sealed partial class ModelTrainingService(
                         throw new InvalidOperationException("The base checkpoint changed during training.");
                     var provenance = JsonSerializer.Serialize(new
                     {
-                        attemptId, Dataset = dataset, BaseFiles = baseFiles, AdapterFiles = adapterFiles,
+                        attemptId, Dataset = dataset, BaseFiles = baseFiles, AdapterFiles = adapterFiles, AdapterVerification = verification,
                         ConfigurationSha256 = await HashTrainingFileAsync(configFile, token).ConfigureAwait(false)
                     });
                     await File.WriteAllTextAsync(Path.Combine(attemptFolder, "provenance.json"), provenance, token).ConfigureAwait(false);
@@ -677,6 +696,7 @@ public sealed partial class ModelTrainingService(
                 "progress" => "Training",
                 "checkpoint" => "Saving checkpoint",
                 "eval" => "Evaluating adapter",
+                "verifying_adapter" => "Reloading and verifying the saved adapter",
                 "result" => "Adapter ready",
                 _ => null
             };

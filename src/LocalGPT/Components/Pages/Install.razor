@@ -34,6 +34,8 @@
 @inject ILocalGptApplicationPathService ApplicationPaths
 @inject ILocalAiRuntimeService LocalAiRuntime
 @inject IModelTrainingService ModelTraining
+@inject ILocalGptRuntimePolicyDataService TrainingRuntimePolicy
+@inject IVariableStoreService TrainingVariables
 @inject IPythonJobOrchestrationService PythonJobs
 @inject ILocalAiAcquisitionService LocalAiAcquisition
 @inject IHuggingFaceModelCatalogService HuggingFaceCatalog
@@ -1606,6 +1608,25 @@
                     {
                         <p class="field-help">@TrainingNextStep</p>
                     }
+                    <details>
+                        <summary>LoRA runtime settings</summary>
+                        <DxFormLayout>
+                            <DxFormLayoutItem Caption="Setting" ColSpanMd="12">
+                                <DxComboBox Data="@TrainingSettingOptions" Value="@TrainingSettingKey"
+                                            ValueChanged="@((string key) => LoadTrainingSetting(key))" Enabled="@(!LocalAiBusy)" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Setting JSON" ColSpanMd="12">
+                                <DxMemo @bind-Text="TrainingSettingJson" Rows="8" ReadOnly="@LocalAiBusy" />
+                            </DxFormLayoutItem>
+                            <DxFormLayoutItem ColSpanMd="12">
+                                <DxButton Text="Save LoRA setting" Enabled="@(!LocalAiBusy)" Click="@SaveTrainingSettingAsync" />
+                                @if (TrainingSettingStatus is not null)
+                                {
+                                    <p role="status">@TrainingSettingStatus</p>
+                                }
+                            </DxFormLayoutItem>
+                        </DxFormLayout>
+                    </details>
                 </article>
                 <div class="local-ai-profile-grid">
                     @foreach (var profile in LocalAiPackageProfiles)

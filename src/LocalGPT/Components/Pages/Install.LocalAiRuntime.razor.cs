@@ -129,6 +129,8 @@ namespace LocalGPT.Components.Pages
             LocalAiPackageProfiles = LocalAiRuntime.GetPackageProfiles();
             LocalAiInstalledModels = LocalAiRuntime.GetInstalledModels();
             LocalAiKnownModels = LocalAiAcquisition.GetKnownModels();
+            if (TrainingSettingJson is null)
+                LoadTrainingSetting(TrainingSettingKey);
         }
         /// <summary>
         /// Stores the internal local AI trust remote code state used by <see cref="Install"/> while executing its surrounding workflow.
@@ -323,6 +325,72 @@ namespace LocalGPT.Components.Pages
         private string? TrainingInterpreter;
         private string? TrainingBackend;
         private string? TrainingNextStep;
+        private readonly string[] TrainingSettingOptions =
+        [
+            "ModelTrainingDefaultsJson", "ModelTrainingWorkerOptionsJson", "ModelTrainingAutoPreparationBackendsJson",
+            "ModelTrainingPyTorchPackagesJson", "ModelTrainingMlxPackagesJson"
+        ];
+        private string TrainingSettingKey = "ModelTrainingDefaultsJson";
+        private string? TrainingSettingJson;
+        private string? TrainingSettingStatus;
+
+        private void LoadTrainingSetting(string key)
+        {
+            if (!TrainingSettingOptions.Contains(key))
+                return;
+
+            TrainingSettingKey = key;
+            TrainingSettingJson = TrainingRuntimePolicy.GetString(key);
+            TrainingSettingStatus = null;
+        }
+
+        private async Task SaveTrainingSettingAsync()
+        {
+            if (LocalAiBusy || string.IsNullOrWhiteSpace(TrainingSettingJson))
+                return;
+
+            LocalAiBusy = true;
+            try
+            {
+                using var document = JsonDocument.Parse(TrainingSettingJson);
+                if (document.RootElement.ValueKind != JsonValueKind.Object)
+                    throw new JsonException("Enter a JSON object.");
+
+                switch (TrainingSettingKey)
+                {
+                    case "ModelTrainingWorkerOptionsJson":
+                        document.RootElement.Deserialize<Dictionary<string, bool>>();
+                        break;
+                    case "ModelTrainingAutoPreparationBackendsJson":
+                        document.RootElement.Deserialize<Dictionary<string, string>>();
+                        break;
+                    case "ModelTrainingPyTorchPackagesJson":
+                    case "ModelTrainingMlxPackagesJson":
+                        if (!document.RootElement.TryGetProperty("packages", out var packages)
+                            || packages.ValueKind != JsonValueKind.Array
+                            || packages.EnumerateArray().Any(package => package.ValueKind != JsonValueKind.String))
+                            throw new JsonException("Enter a packages array of Python package specifications.");
+                        break;
+                }
+
+                await TrainingVariables.SetAsync(TrainingSettingKey, TrainingSettingJson);
+                await Task.Run(() => TrainingRuntimePolicy.Reload());
+                TrainingSettingStatus = "LoRA setting saved.";
+            }
+            catch (JsonException exception)
+            {
+                TrainingSettingStatus = exception.Message;
+            }
+            catch (Exception exception)
+            {
+                Logger.LogWarning(exception, "Saving LoRA runtime setting {SettingKey} failed.", TrainingSettingKey);
+                TrainingSettingStatus = "The LoRA setting could not be applied.";
+            }
+            finally
+            {
+                LocalAiBusy = false;
+            }
+        }
 
         private async Task CheckLocalAiTrainingAsync(bool prepare)
         {

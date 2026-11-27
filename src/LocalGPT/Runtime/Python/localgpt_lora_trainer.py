@@ -17,7 +17,8 @@ Contract with the host application
 
 Backends
   cuda-nvidia  PyTorch CUDA (optional bitsandbytes 4-bit QLoRA)
-  rocm         PyTorch ROCm (torch.version.hip set; Linux or WSL2)
+  rocm         PyTorch ROCm (torch.version.hip and a working GPU)
+  xpu          PyTorch with an available Intel XPU
   mps          PyTorch on Apple Metal (fp16/fp32; bf16 only if a runtime test passes)
   mlx          Apple MLX via `python -m mlx_lm.lora`, including prequantized 4-bit MLX models
   cpu          PyTorch on CPU, only when the config sets allow_cpu = true
@@ -59,7 +60,6 @@ from typing import Any
 _OUT = sys.stdout  # real stdout; sys.stdout is pointed at stderr once main() starts
 _T0 = time.monotonic()
 
-BACKENDS = ("cuda-nvidia", "rocm", "mps", "mlx", "cpu")
 ESTIMATOR = {
     "bytes_per_param_16bit": 2.0,
     "bytes_per_param_4bit": 0.7,
@@ -308,6 +308,22 @@ def _detect() -> dict:
             detail[backend] = {"device_name": name, "total_mib": total, "free_mib": free, "usable_mib": free,
                                "usable_basis": "free device memory" if free is not None else "unknown",
                                "bf16": bf16, "fp16": True}
+        xpu = getattr(torch, "xpu", None)
+        if xpu is not None and xpu.is_available():
+            free = total = None
+            if hasattr(xpu, "mem_get_info"):
+                try:
+                    free_bytes, total_bytes = xpu.mem_get_info(0)
+                    free, total = free_bytes // MIB, total_bytes // MIB
+                except RuntimeError:
+                    pass
+            properties = xpu.get_device_properties(0)
+            if total is None:
+                total = getattr(properties, "total_memory", 0) // MIB or None
+            available.append("xpu")
+            detail["xpu"] = {"device_name": properties.name, "total_mib": total, "free_mib": free,
+                             "usable_mib": free, "usable_basis": "free device memory" if free is not None else "unknown",
+                             "bf16": xpu.is_bf16_supported(), "fp16": True}
         try:
             mps_ok = bool(getattr(torch.backends, "mps", None) and torch.backends.mps.is_available())
         except Exception:
@@ -345,10 +361,8 @@ def _detect() -> dict:
                          "bf16": False, "fp16": False}
 
     accelerated = [b for b in available if b != "cpu"]
-    # Auto order required by LocalGPT: cuda/rocm > mps > mlx. CPU is never auto-selected silently.
-    order = [b for b in ("cuda-nvidia", "rocm", "mps", "mlx") if b in available]
-    backend = order[0] if order else ("cpu" if "cpu" in available else "none")
-    four_bit = backend == "cuda-nvidia" and packages["bitsandbytes"]["importable"]
+    backend = next(iter(available), "none")
+    four_bit = "cuda-nvidia" in available and packages["bitsandbytes"]["importable"]
     env = {"facts": facts, "packages": packages, "gpus": gpus, "torch_info": torch_info,
            "available_backends": available, "accelerated_backends": accelerated, "backend": backend,
            "detail": detail, "ram_total_mib": ram_total, "ram_free_mib": ram_free,
@@ -368,19 +382,14 @@ def _problems(env: dict) -> list[dict]:
     vendors = {g["vendor"] for g in env["gpus"]}
     accel = env["accelerated_backends"]
     tv = env["torch_info"]
-    if f["is_steam_deck"]:
-        add("warning", "Steam Deck detected: its AMD APU has no supported GPU training path.",
-            "Train on CPU only with a tiny model: set backend to \"cpu\" and allow_cpu to true, or train on another machine.")
     if not pk["torch"]["importable"]:
         extra = f" ({pk['torch']['error']})" if pk["torch"]["error"] else ""
         add("error", "PyTorch is not installed or cannot be imported" + extra + ".",
             "Install a PyTorch build that matches the hardware (see README.md). On Apple Silicon you can alternatively install mlx and mlx-lm.")
     else:
         if f["is_windows_native"] and "AMD" in vendors and "rocm" not in accel:
-            add("error", "Windows with an AMD GPU: PyTorch cannot use the GPU on native Windows here.",
-                "Use WSL2 Ubuntu with a ROCm build of PyTorch (torch.cuda.is_available() must be True and torch.version.hip set), and run this trainer inside WSL2.")
-        if f["is_windows_native"] and "rocm" in accel:
-            add("warning", "PyTorch ROCm on native Windows is unreliable.", "Prefer WSL2 Ubuntu with ROCm PyTorch for the AMD GPU.")
+            add("warning", "The installed PyTorch cannot access this AMD GPU.",
+                "Check AMD's ROCm support for this GPU and OS, then install matching drivers and PyTorch in this environment.")
         if "NVIDIA" in vendors and "cuda-nvidia" not in accel:
             if not tv.get("cuda_build"):
                 add("error", "An NVIDIA GPU is present but the installed PyTorch is a CPU-only build.",
@@ -524,7 +533,7 @@ def verify_training_api(backend: str) -> dict:
 
 def cmd_probe(args: argparse.Namespace) -> int:
     env = detect()
-    backend = args.backend or env["backend"]
+    backend = env["backend"] if args.backend == "auto" else normalize_backend(args.backend)
     det = env["detail"].get(backend, {})
     # Some third-party imports print warnings to stdout. Keep the probe JSON-only.
     from contextlib import redirect_stdout
@@ -533,6 +542,9 @@ def cmd_probe(args: argparse.Namespace) -> int:
     if backend not in env["available_backends"] and readiness["ready"]:
         readiness = {"ready": False, "problem": f"The {backend} device is unavailable to this interpreter.",
                      "remedy": "Use a native interpreter and a backend build supported by this machine, then check readiness again."}
+    if backend == "cpu" and not args.allow_cpu:
+        readiness = {"ready": False, "problem": "CPU training requires opt-in.",
+                     "remedy": "Enable allow_cpu in the training configuration for a small CPU training job."}
     report: dict[str, Any] = {
         "event": "probe",
         **{k: env["facts"][k] for k in ("os", "os_release", "os_version", "machine", "python", "python_executable")},
@@ -544,7 +556,7 @@ def cmd_probe(args: argparse.Namespace) -> int:
         "memory_total_mib": det.get("total_mib"), "memory_free_mib": det.get("free_mib"),
         "memory_usable_mib": det.get("usable_mib"), "memory_usable_basis": det.get("usable_basis"),
         "supports_bf16": bool(det.get("bf16", False)), "supports_fp16": bool(det.get("fp16", False)),
-        "four_bit_available": env["four_bit_available"],
+        "four_bit_available": backend == "cuda-nvidia" and env["four_bit_available"],
         "problems": env["problems"], "estimate": None,
         "estimator_constants": ESTIMATOR,
     }
@@ -570,12 +582,13 @@ REQUIRED = {  # key -> kind
     "lora_alpha": "float>0", "lora_dropout": "float[0,1)", "target_modules": "modules",
     "max_sequence_length": "int>=1", "batch_size": "int>=1", "gradient_accumulation_steps": "int>=1",
     "gradient_checkpointing": "bool", "precision": ("auto", "bf16", "fp16", "fp32"),
-    "quantization": ("none", "4bit"), "backend": ("auto", "cuda", "rocm", "mps", "mlx", "cpu"),
+    "quantization": ("none", "4bit"), "backend": ("auto", "cuda", "cuda-nvidia", "rocm", "xpu", "mps", "mlx", "cpu"),
     "allow_cpu": "bool", "seed": "int", "save_steps": "int>=1", "logging_steps": "int>=1",
 }
 # Optional keys. mlx_num_layers is required when the backend resolves to mlx; the bnb_* keys when
 # quantization is "4bit". force defaults to false; cancel_file defaults to none.
-OPTIONAL = {"force", "cancel_file", "mlx_num_layers", "bnb_4bit_quant_type", "bnb_4bit_double_quant"}
+OPTIONAL = {"force", "cancel_file", "mlx_num_layers", "bnb_4bit_quant_type", "bnb_4bit_double_quant",
+            "async_weight_loading", "isolated_worker_exit"}
 
 
 def _missing(key: str, what: str) -> TrainerError:
@@ -618,8 +631,9 @@ def load_config(path: str) -> dict:
     unknown = sorted(set(raw) - set(REQUIRED) - OPTIONAL)
     if unknown:
         raise TrainerError(f"Unknown config key(s): {', '.join(unknown)}.", "Remove or correct the key (typo?).", unknown[0])
-    if "force" in raw and not isinstance(raw["force"], bool):
-        raise _missing("force", "true or false")
+    for key in ("force", "async_weight_loading", "isolated_worker_exit"):
+        if key in raw and not isinstance(raw[key], bool):
+            raise _missing(key, "true or false")
     if raw.get("cancel_file") is not None and not isinstance(raw["cancel_file"], str):
         raise _missing("cancel_file", "a path string")
     return raw
@@ -712,21 +726,23 @@ def vocab_size_of(base: Path) -> int | None:
 
 # --------------------------------------------------------------------------- backend selection
 
+def normalize_backend(backend: str) -> str:
+    return "cuda-nvidia" if backend == "cuda" else backend
+
+
 def select_backend(env: dict, cfg: dict) -> tuple[str, list[str]]:
     requested, allow_cpu, notes = cfg["backend"], cfg["allow_cpu"], []
     avail = env["available_backends"]
-    wants = {"cuda": "cuda-nvidia", "rocm": "rocm", "mps": "mps", "mlx": "mlx", "cpu": "cpu"}
     hints = "; ".join(p["remedy"] for p in env["problems"] if p["severity"] == "error") or "Run `probe` and follow its remedies."
     if requested == "auto":
-        for b in ("cuda-nvidia", "rocm", "mps", "mlx"):
-            if b in avail:
-                return b, notes
+        if env["accelerated_backends"]:
+            return env["backend"], notes
         if allow_cpu and "cpu" in avail:
             notes.append("No GPU backend is available; training on CPU because allow_cpu is true.")
             return "cpu", notes
         raise TrainerError("No GPU training backend is available and CPU training is not allowed.",
                            hints + " To train on CPU anyway (tiny models only) set allow_cpu to true.", "backend")
-    target = wants[requested]
+    target = normalize_backend(requested)
     if target == "cpu":
         if not allow_cpu:
             raise TrainerError("backend \"cpu\" requires explicit opt-in.", "Set allow_cpu to true (only tiny models are practical on CPU).", "allow_cpu")
@@ -750,7 +766,7 @@ def resolve_precision(env: dict, cfg: dict, backend: str) -> str:
     if p == "auto":
         if det["bf16"]:
             return "bf16"
-        if backend in ("cuda-nvidia", "rocm", "mps") and det["fp16"]:
+        if det["fp16"]:
             return "fp16"
         return "fp32"
     if p == "bf16" and not det["bf16"]:
@@ -769,6 +785,8 @@ def _check_cancel(cfg: dict) -> None:
 
 
 def train_torch(cfg: dict, backend: str, precision: str, info: dict) -> dict:
+    device_type = {"cuda-nvidia": "cuda", "rocm": "cuda"}.get(backend, backend)
+    os.environ["ACCELERATE_TORCH_DEVICE"] = device_type
     missing = [m for m in ("transformers", "peft", "trl", "datasets") if importlib.util.find_spec(m) is None]
     if missing:
         raise TrainerError(f"Missing Python package(s): {', '.join(missing)}.", f"pip install {' '.join(missing)} (see README.md).")
@@ -783,10 +801,11 @@ def train_torch(cfg: dict, backend: str, precision: str, info: dict) -> dict:
     out = Path(cfg["output_dir"])
     out.mkdir(parents=True)  # raises if it appeared meanwhile
     dtype = {"bf16": torch.bfloat16, "fp16": torch.float16, "fp32": torch.float32}[precision]
-    gpu = backend in ("cuda-nvidia", "rocm")
+    mixed_precision = backend not in ("mps", "cpu")
 
-    train = load_dataset("json", data_files=cfg["train_dataset"], split="train")
-    evaluation = load_dataset("json", data_files=cfg["eval_dataset"], split="train")
+    cache_dir = str(out / "datasets")
+    train = load_dataset("json", data_files=cfg["train_dataset"], split="train", cache_dir=cache_dir)
+    evaluation = load_dataset("json", data_files=cfg["eval_dataset"], split="train", cache_dir=cache_dir)
     tokenizer = AutoTokenizer.from_pretrained(cfg["base_model"], local_files_only=True, trust_remote_code=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -817,7 +836,7 @@ def train_torch(cfg: dict, backend: str, precision: str, info: dict) -> dict:
         max_length=cfg["max_sequence_length"], eval_strategy="epoch", save_strategy="steps",
         save_steps=cfg["save_steps"], logging_steps=cfg["logging_steps"], report_to="none", seed=cfg["seed"],
         completion_only_loss=True, gradient_checkpointing=cfg["gradient_checkpointing"],
-        bf16=(precision == "bf16" and gpu), fp16=(precision == "fp16" and gpu), use_cpu=(backend == "cpu"),
+        bf16=(precision == "bf16" and mixed_precision), fp16=(precision == "fp16" and mixed_precision), use_cpu=(backend == "cpu"),
     )
     if cfg["gradient_checkpointing"]:
         sft["gradient_checkpointing_kwargs"] = {"use_reentrant": False}
@@ -842,7 +861,11 @@ def train_torch(cfg: dict, backend: str, precision: str, info: dict) -> dict:
         def on_save(self, args, state, control, **_):
             emit("checkpoint", step=int(state.global_step))
 
-    trainer = SFTTrainer(model=model, args=SFTConfig(**sft), train_dataset=train, eval_dataset=evaluation,
+    args = SFTConfig(**sft)
+    if args.device.type != device_type:
+        raise TrainerError(f"The training stack selected {args.device.type} instead of {device_type}.",
+                           "Check the interpreter's PyTorch and Accelerate builds and rerun readiness.", "backend")
+    trainer = SFTTrainer(model=model, args=args, train_dataset=train, eval_dataset=evaluation,
                          peft_config=adapter, processing_class=tokenizer, callbacks=[Progress()])
     baseline = float(trainer.evaluate().get("eval_loss", float("nan")))
     if not math.isfinite(baseline):
@@ -852,15 +875,30 @@ def train_torch(cfg: dict, backend: str, precision: str, info: dict) -> dict:
     final = float(trainer.evaluate().get("eval_loss", float("nan")))
     if not math.isfinite(final):
         raise TrainerError("Held-out evaluation loss is missing or not finite.", "Lower learning_rate or use precision \"fp32\".")
-    trainer.model.save_pretrained(str(out / "adapter"), safe_serialization=True)
-    tokenizer.save_pretrained(str(out / "adapter"))
+    adapter_path = str(out / "adapter")
+    trainer.model.save_pretrained(adapter_path, safe_serialization=True)
+    tokenizer.save_pretrained(adapter_path)
+    _check_cancel(cfg)
+    emit("verifying_adapter", backend=backend)
+    original_adapter = trainer.model.active_adapter
+    trainer.model.load_adapter(adapter_path, adapter_name="verification", is_trainable=False)
+    trainer.model.set_adapter("verification")
+    reloaded_loss = float(trainer.evaluate().get("eval_loss", float("nan")))
+    if not math.isclose(final, reloaded_loss, rel_tol=1e-5, abs_tol=1e-6):
+        raise TrainerError("Reloading the saved adapter did not reproduce the held-out loss.",
+                           "Check the PEFT and PyTorch versions, then rerun the training attempt.")
+    trainer.model.set_adapter(original_adapter)
+    trainer.model.delete_adapter("verification")
+    _check_cancel(cfg)
     merged = False
     if not four:  # a 4-bit base cannot be merged losslessly; reload the 16-bit base to merge elsewhere
         trainer.model.merge_and_unload(safe_merge=True).save_pretrained(str(out / "merged"), safe_serialization=True)
         tokenizer.save_pretrained(str(out / "merged"))
         merged = True
     return {"train_loss": float(result.training_loss), "baseline_eval_loss": baseline, "eval_loss": final,
-            "adapter_path": str(out / "adapter"), "merged_path": str(out / "merged") if merged else None}
+            "adapter_path": adapter_path, "merged_path": str(out / "merged") if merged else None,
+            "adapter_verification": {"method": "peft_reload_and_evaluate", "device": device_type,
+                                     "eval_loss": reloaded_loss}}
 
 
 # --------------------------------------------------------------------------- training: mlx path
@@ -945,8 +983,21 @@ def train_mlx(cfg: dict, info: dict) -> dict:
     if not (adapter_dir / "adapters.safetensors").is_file() or len(vals) < 2:
         raise TrainerError("mlx_lm.lora finished but no adapter or baseline/final validation loss was found.",
                            "Check the stderr log for the adapter save and the initial/final validation passes.")
+    _check_cancel(cfg)
+    emit("verifying_adapter", backend="mlx")
+    import mlx.core as mx
+    from mlx_lm import load
+    model, tokenizer = load(cfg["base_model"], adapter_path=str(adapter_dir))
+    with open(cfg["eval_dataset"], encoding="utf-8") as handle:
+        sample = json.loads(next(line for line in handle if line.strip()))
+    tokens = tokenizer.encode(sample["prompt"] + sample["completion"])[:cfg["max_sequence_length"]]
+    if not tokens or not mx.all(mx.isfinite(model(mx.array([tokens])))).item():
+        raise TrainerError("The saved MLX adapter did not produce finite evaluation logits.",
+                           "Check the MLX-LM version and base checkpoint, then rerun the training attempt.")
+    _check_cancel(cfg)
     return {"train_loss": train_losses[-1] if train_losses else None, "baseline_eval_loss": vals[0], "eval_loss": vals[-1],
-            "adapter_path": str(adapter_dir), "merged_path": None}
+            "adapter_path": str(adapter_dir), "merged_path": None,
+            "adapter_verification": {"method": "mlx_reload_and_forward", "device": "mlx"}}
 
 
 # --------------------------------------------------------------------------- train command
@@ -957,6 +1008,9 @@ def cmd_train(args: argparse.Namespace) -> int:
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["WANDB_DISABLED"] = "true"
     cfg = load_config(args.config)
+    if "async_weight_loading" in cfg:
+        os.environ["HF_DEACTIVATE_ASYNC_LOAD"] = "0" if cfg["async_weight_loading"] else "1"
+        os.environ["HF_ENABLE_PARALLEL_LOADING"] = "true" if cfg["async_weight_loading"] else "false"
     info = validate_paths(cfg)
     env = detect()
     backend, notes = select_backend(env, cfg)
@@ -1019,6 +1073,7 @@ def cmd_train(args: argparse.Namespace) -> int:
     emit("start", backend=backend, max_steps=cfg["max_steps"])
     try:
         res = train_mlx(cfg, info) if backend == "mlx" else train_torch(cfg, backend, precision, info)
+        _check_cancel(cfg)
     except Cancelled:
         emit("cancelled")
         return 3
@@ -1028,6 +1083,11 @@ def cmd_train(args: argparse.Namespace) -> int:
                "requires_independent_benchmark": True}
     (Path(cfg["output_dir"]) / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     emit("result", status="adapter_ready", **metrics)
+    if backend != "mlx" and cfg.get("isolated_worker_exit", False):
+        # Results are closed and flushed. This process owns the PyTorch runtime, whose
+        # native shutdown can fault after successful training on some dependency builds.
+        sys.stderr.flush()
+        os._exit(0)
     return 0
 
 
@@ -1038,7 +1098,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="LocalGPT hardware-portable offline LoRA trainer")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("probe", help="describe this machine as one JSON object")
-    p.add_argument("--backend", choices=["cuda-nvidia", "rocm", "mps", "mlx", "cpu"])
+    p.add_argument("--backend", choices=list(REQUIRED["backend"]), default="auto")
+    p.add_argument("--allow-cpu", action="store_true")
     p.add_argument("--parameters-billions", type=float)
     p.add_argument("--lora-rank", type=int)
     p.add_argument("--tokens-per-step", type=int)

@@ -599,6 +599,55 @@
       "expected": {
         "result": false
       }
+    },
+    {
+      "name": "C# remainder",
+      "teamKey": "program-compiler-team",
+      "role": "Program architect",
+      "prompt": "In C#, what integer does -7 % 2 produce? Return the integer as result.",
+      "expected": {
+        "result": -1
+      }
+    },
+    {
+      "name": "C# checked overflow",
+      "teamKey": "program-compiler-team",
+      "role": "Program architect",
+      "prompt": "At runtime a variable of type int holds int.MaxValue. Incrementing it in a checked block throws which .NET exception? Return its simple type name as exception.",
+      "expected": {
+        "exception": "OverflowException"
+      }
+    },
+    {
+      "name": "Layout reading order",
+      "teamKey": "publisher-panel",
+      "role": "Layout architect",
+      "prompt": "A document contains a heading, an introduction, and a chart. Use the IDs chart, title, intro. Return their logical reading order in the array order.",
+      "expected": {
+        "order": [
+          "title",
+          "intro",
+          "chart"
+        ]
+      }
+    },
+    {
+      "name": "Independent label",
+      "teamKey": "publisher-panel",
+      "role": "Layout architect",
+      "prompt": "A text input's placeholder is its only label. Which element should be paired with the input: label, footer or meter? Return the element name as element.",
+      "expected": {
+        "element": "label"
+      }
+    },
+    {
+      "name": "Publisher catalog before edits",
+      "teamKey": "publisher-panel",
+      "role": "Module operation reviewer",
+      "prompt": "The trusted PublisherStudio peer has no cached module catalog. Which operation must happen first: discover, edit, or export? Return your choice as firstOperation.",
+      "expected": {
+        "firstOperation": "discover"
+      }
     }
   ]
 }

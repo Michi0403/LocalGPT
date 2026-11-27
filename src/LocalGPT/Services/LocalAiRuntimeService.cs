@@ -64,12 +64,8 @@ public sealed partial class LocalAiRuntimeService(
             await EnsureRuntimePolicyLoadedAsync(cancellationToken).ConfigureAwait(false);
             var executable = GetManagedPythonExecutable();
             var environmentPath = ResolveEnvironmentPath(CurrentConfig());
-            var profile = new LocalAiPackageProfile
-            {
-                Key = useMlx ? "lora-mlx" : "lora-pytorch",
-                DisplayName = useMlx ? "MLX LoRA training" : "PyTorch LoRA training",
-                Packages = useMlx ? ["mlx", "mlx-lm"] : ["transformers>=4.55", "peft", "trl", "datasets", "accelerate>=1.10"]
-            };
+            var setting = useMlx ? "ModelTrainingMlxPackagesJson" : "ModelTrainingPyTorchPackagesJson";
+            var profile = runtimePolicy.GetJson<LocalAiPackageProfile>(setting);
             if (!useMlx)
             {
                 ReportInstallProgress(progress, "Checking the managed PyTorch installation…");
