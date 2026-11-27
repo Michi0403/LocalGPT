@@ -98,17 +98,20 @@ public sealed partial class LocalAiRuntimeService(
     /// <summary>
     /// Stores the in-memory executable capabilities collection maintained internally by <see cref="LocalAiRuntimeService"/> for its current workflow state.
     /// </summary>
-    private readonly HashSet<LocalAiCapability> ExecutableCapabilities =
-    [
-        LocalAiCapability.ImageGeneration,
-        LocalAiCapability.ImageEditing,
-        LocalAiCapability.TextToVideo,
-        LocalAiCapability.ImageToVideo,
-        LocalAiCapability.SpeechRecognition
-    ];
+    private readonly IReadOnlyDictionary<LocalAiCapability, string> builtInModelAdapters =
+        new Dictionary<LocalAiCapability, string>
+        {
+            [LocalAiCapability.ImageGeneration] = "image",
+            [LocalAiCapability.ImageEditing] = "image-edit",
+            [LocalAiCapability.TextToVideo] = "video",
+            [LocalAiCapability.ImageToVideo] = "image-to-video",
+            [LocalAiCapability.SpeechRecognition] = "asr",
+            [LocalAiCapability.SpeechSynthesis] = "audio",
+            [LocalAiCapability.AudioGeneration] = "audio"
+        };
 
     /// <inheritdoc />
-    public bool SupportsModelCapability(LocalAiCapability capability) => ExecutableCapabilities.Contains(capability);
+    public bool SupportsModelCapability(LocalAiCapability capability) => builtInModelAdapters.ContainsKey(capability);
     /// <summary>
     /// Defines the runtime policy profile key constant used by <see cref="LocalAiRuntimeService"/> so callers and internal logic share the same stable value.
     /// </summary>
@@ -179,7 +182,7 @@ public sealed partial class LocalAiRuntimeService(
             var config = CurrentConfig();
             var environmentPath = ResolveEnvironmentPath(config);
             var modelCount = GetInstalledModels().Count;
-            return new LocalAiRuntimeStatus
+            var status = new LocalAiRuntimeStatus
             {
                 Configured = !string.IsNullOrWhiteSpace(config.PythonExecutable) && !string.IsNullOrWhiteSpace(config.PythonRuntime),
                 PythonExecutableExists = !string.IsNullOrWhiteSpace(config.PythonExecutable) && File.Exists(config.PythonExecutable),
@@ -190,10 +193,13 @@ public sealed partial class LocalAiRuntimeService(
                 RestartRequired = python.RestartRequired || runtimePolicyRestartRequired,
                 QueueLength = python.QueueLength,
                 InstalledModelCount = modelCount,
+                PyTorchProfileKeys = GetPackageProfiles().Where(profile => profile.IncludesTorch).Select(profile => profile.Key).ToArray(),
                 Message = python.RestartRequired || runtimePolicyRestartRequired
                     ? "Python runtime binding or queue policy changed after interpreter initialization; restart LocalGPT before relying on the changed startup-only settings."
                     : "Local AI runtime status loaded."
             };
+            status.SetupGuidance = GetRuntimeSetupGuidance(status);
+            return status;
     
     }
     catch (Exception __serviceMethodException)
@@ -216,7 +222,7 @@ public sealed partial class LocalAiRuntimeService(
     try
     {
             var status = await GetStatusAsync(cancellationToken).ConfigureAwait(false);
-            if (!status.Configured || !status.VirtualEnvironmentExists || !status.PythonNetAvailable)
+            if (!status.PythonExecutableExists || !status.PythonRuntimeLibraryExists || !status.VirtualEnvironmentExists || !status.PythonNetAvailable || status.RestartRequired)
                 return status;
             var result = await python.ExecuteAsync(new LocalAiRuntimeJobRequest
             {
@@ -224,7 +230,7 @@ public sealed partial class LocalAiRuntimeService(
                 Parameters = new Dictionary<string, object?> { ["device"] = CurrentConfig().DefaultDevice }
             }, cancellationToken).ConfigureAwait(false);
             status.InterpreterInitialized = python.IsInitialized;
-            status.RestartRequired = python.RestartRequired;
+            status.RestartRequired = python.RestartRequired || runtimePolicyRestartRequired;
             status.QueueLength = python.QueueLength;
             status.PythonVersion = result.Metadata.GetValueOrDefault("python_version", string.Empty);
             var device = result.Metadata.GetValueOrDefault("device", string.Empty);
@@ -233,6 +239,11 @@ public sealed partial class LocalAiRuntimeService(
             var backendLabel = string.IsNullOrWhiteSpace(backend) || backend.Equals(device, StringComparison.OrdinalIgnoreCase) ? device : $"{backend}/{device}";
             status.DeviceSummary = string.IsNullOrWhiteSpace(deviceName) ? backendLabel : $"{backendLabel} · {deviceName}";
             status.Message = result.Succeeded ? "Embedded Python.NET runtime probe completed." : result.Message;
+            status.SetupGuidance = status.RestartRequired
+                ? GetRuntimeSetupGuidance(status)
+                : result.Succeeded && !string.Equals(device, "cpu", StringComparison.OrdinalIgnoreCase)
+                    ? "Install the package profile for your task, then select a compatible model under Local AI runtimes."
+                    : "In /install → Local AI runtimes, check the Python task monitor and choose the supported PyTorch profile that matches your hardware and driver. Use NVIDIA CUDA, AMD ROCm, Intel XPU, Apple Metal (MPS), or CPU as applicable, then probe again. CPU can take considerably longer for video.";
             return status;
     
     }
@@ -520,10 +531,21 @@ public sealed partial class LocalAiRuntimeService(
     }
 }
 
-    /// <summary>
-    /// Retrieves package profiles as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
-    /// </summary>
-    /// <returns>The collection produced by the operation.</returns>
+    /// <summary>Identifies the next setup step from the current runtime status.</summary>
+    private string GetRuntimeSetupGuidance(LocalAiRuntimeStatus status)
+    {
+        if (!status.PythonExecutableExists || !status.PythonRuntimeLibraryExists)
+            return "Open /install → Local AI runtimes and detect and configure a compatible Python installation. The executable and shared runtime library must both be available.";
+        if (!status.VirtualEnvironmentExists)
+            return "Create the managed Python environment in /install → Local AI runtimes. Install the PyTorch profile for your hardware and the package profile for your task.";
+        if (!status.PythonNetAvailable)
+            return "Check the LocalGPT installation for its Python.NET runtime component, then probe Python.NET again.";
+        if (status.RestartRequired)
+            return "Wait for active jobs to finish, then restart LocalGPT and probe Python.NET again to verify the new configuration.";
+        return "Run Probe Python.NET in /install → Local AI runtimes to verify the active Python and PyTorch device before using an image, video or speech model.";
+    }
+
+    /// <summary>Returns the package profiles available on the current platform.</summary>
     public IReadOnlyList<LocalAiPackageProfile> GetPackageProfiles() {
     try
     {
@@ -643,11 +665,13 @@ public sealed partial class LocalAiRuntimeService(
             .Where(value => value != LocalAiCapability.Unknown)
             .Distinct()
             .ToList();
-        if (capabilities.Count == 0)
-            throw new InvalidOperationException("A specialized model must be bound to at least one executable LocalGPT capability.");
+        if (request.SnapshotOnly && (capabilities.Count > 0 || request.TrustRemoteCode))
+            throw new ArgumentException("A snapshot-only install cannot enable built-in capabilities or repository code.", nameof(request));
+        if (!request.SnapshotOnly && capabilities.Count == 0)
+            throw new ArgumentException("Choose a built-in capability to verify, or choose a snapshot-only install for a runtime extension.", nameof(request));
         var unsupported = capabilities.Where(value => !SupportsModelCapability(value)).ToArray();
         if (unsupported.Length > 0)
-            throw new NotSupportedException($"This LocalGPT release does not yet execute capability binding(s): {string.Join(", ", unsupported)}.");
+            throw new NotSupportedException($"No built-in adapter for {string.Join(", ", unsupported)}. Install the snapshot only and bind it to a runtime extension in /install → Toolchains.");
         var config = CurrentConfig();
         if (request.RequiresAuthentication)
         {
@@ -699,26 +723,27 @@ public sealed partial class LocalAiRuntimeService(
             foreach (var capability in capabilities)
             {
                 ReportInstallProgress(progress, $"Loading the downloaded weights offline to verify {capability}…");
-                var probeKind = capability switch
-                {
-                    LocalAiCapability.ImageGeneration => "image",
-                    LocalAiCapability.ImageEditing => "image-edit",
-                    LocalAiCapability.TextToVideo => "video",
-                    LocalAiCapability.ImageToVideo => "image-to-video",
-                    LocalAiCapability.SpeechRecognition => "asr",
-                    _ => throw new NotSupportedException("No verified executable local-AI adapter is registered for this capability.")
-                };
                 var loadProbe = await RunBridgeProcessAsync("model_load_probe", new Dictionary<string, object?>
                 {
                     ["model_path"] = localPath,
-                    ["kind"] = probeKind,
+                    ["kind"] = builtInModelAdapters[capability],
                     ["trust_remote_code"] = request.TrustRemoteCode,
                     ["device"] = config.DefaultDevice,
                     ["memory_strategy"] = config.DefaultMemoryStrategy
                 }, TimeSpan.FromMinutes(30), cancellationToken).ConfigureAwait(false);
                 if (!loadProbe.Succeeded ||
                     !string.Equals(loadProbe.Metadata.GetValueOrDefault("model_loaded"), "true", StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException("Downloaded model weights could not be loaded for every declared capability. The incomplete installation will be removed.");
+                {
+                    var reason = loadProbe.Status == "WorkerExited"
+                        ? loadProbe.Message
+                        : loadProbe.Metadata.GetValueOrDefault("error_type") switch
+                        {
+                            "OutOfMemoryError" or "MemoryError" => "The runtime ran out of memory while loading the model. Free system memory and VRAM, or choose a smaller model.",
+                            "ImportError" or "ModuleNotFoundError" => "The model requires a dependency missing from the managed Python environment. Install the package profile for this capability and check the model's documented requirements.",
+                            _ => "The downloaded weights could not be loaded by the selected adapter. Check that the revision provides a complete, compatible model for this capability and that the runtime probe passes."
+                        };
+                    throw new LocalAiModelVerificationException($"{capability} verification failed for '{request.ModelId.Trim()}'. {reason} The model was not registered. See /install → Local AI runtimes.");
+                }
             }
             var installation = new LocalAiModelInstallation
             {
@@ -726,7 +751,7 @@ public sealed partial class LocalAiRuntimeService(
                 ModelId = request.ModelId.Trim(),
                 Revision = revision,
                 LocalPath = localPath,
-                Adapter = string.IsNullOrWhiteSpace(request.Adapter) ? InferAdapter(capabilities) : request.Adapter.Trim(),
+                Adapter = request.SnapshotOnly ? "snapshot" : string.IsNullOrWhiteSpace(request.Adapter) ? InferAdapter(capabilities) : request.Adapter.Trim(),
                 Capabilities = capabilities,
                 TrustRemoteCode = request.TrustRemoteCode,
                 SourceProvider = "Hugging Face Hub",
@@ -734,7 +759,7 @@ public sealed partial class LocalAiRuntimeService(
                 RuntimeModelName = request.ModelId.Trim(),
                 InstalledAtUtc = DateTime.UtcNow
             };
-            ReportInstallProgress(progress, "Registering the verified model…");
+            ReportInstallProgress(progress, request.SnapshotOnly ? "Registering the downloaded model files…" : "Registering the verified model…");
             SaveManifest(modelRoot, installation);
             logger.LogInformation("Installed specialized local-AI model {InstallationId} with {CapabilityCount} capability binding(s); model identity and path were omitted from logs.", installationId, installation.Capabilities.Count);
             return installation;
@@ -986,6 +1011,35 @@ public sealed partial class LocalAiRuntimeService(
         throw;
     }
 }
+
+    /// <inheritdoc />
+    public async Task<LocalAiRuntimeJobResult> GenerateAudioAsync(LocalAiAudioGenerationRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > 2000)
+            throw new ArgumentException("Audio input must contain between 1 and 2000 characters.", nameof(request));
+
+        await EnsureRuntimePolicyLoadedAsync(cancellationToken).ConfigureAwait(false);
+        var model = FindInstallation(request.ModelInstallationId);
+        if (!model.Capabilities.Contains(LocalAiCapability.SpeechSynthesis) && !model.Capabilities.Contains(LocalAiCapability.AudioGeneration))
+            throw new InvalidOperationException("Choose a model verified for speech synthesis or audio generation in /install → Local AI runtimes.");
+
+        var config = CurrentConfig();
+        var result = await python.ExecuteAsync(new LocalAiRuntimeJobRequest
+        {
+            Operation = "audio_generate",
+            ModelInstallationId = model.InstallationId,
+            ManagedWorkerExecutable = GetManagedPythonExecutable(),
+            Parameters = new Dictionary<string, object?>
+            {
+                ["model_path"] = model.LocalPath,
+                ["trust_remote_code"] = model.TrustRemoteCode,
+                ["device"] = config.DefaultDevice,
+                ["text"] = request.Text
+            }
+        }, cancellationToken).ConfigureAwait(false);
+        return await PublishGeneratedArtifactAsync(result, "localgpt-audio.wav", cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Performs edit workspace image as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
@@ -1408,6 +1462,16 @@ public sealed partial class LocalAiRuntimeService(
 
                 if (!File.Exists(resultPath))
                 {
+                    if (operation == "model_load_probe")
+                    {
+                        logger.LogWarning("Managed Python exited during model verification with code {ExitCode}; worker output omitted.", processResult.ExitCode);
+                        return new LocalAiRuntimeJobResult
+                        {
+                            JobId = jobId,
+                            Status = "WorkerExited",
+                            Message = $"The managed Python worker stopped during loading (exit code {processResult.ExitCode}). Run the device probe in Local AI runtimes to verify the PyTorch backend and driver. If the probe passes, close other GPU jobs and retry with a smaller compatible model."
+                        };
+                    }
                     EnsureProcessSuccess(processResult, $"Local AI bridge operation '{operation}'");
                     throw new InvalidOperationException("The managed Python bridge returned without a result envelope.");
                 }
@@ -1427,6 +1491,8 @@ public sealed partial class LocalAiRuntimeService(
                     foreach (var property in metadata.EnumerateObject())
                         result.Metadata[property.Name] = property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() ?? string.Empty : property.Value.ToString();
                 }
+                if (operation == "model_load_probe" && root.TryGetProperty("error_type", out var errorType))
+                    result.Metadata["error_type"] = errorType.GetString() ?? string.Empty;
                 if (processResult.ExitCode != 0 && result.Succeeded)
                     EnsureProcessSuccess(processResult, $"Local AI bridge operation '{operation}'");
                 return result;
@@ -1757,6 +1823,7 @@ public sealed partial class LocalAiRuntimeService(
             if (capabilities.Contains(LocalAiCapability.ImageGeneration)) return "diffusers-image";
             if (capabilities.Contains(LocalAiCapability.TextToVideo)) return "diffusers-video";
             if (capabilities.Contains(LocalAiCapability.SpeechRecognition)) return "transformers-asr";
+            if (capabilities.Contains(LocalAiCapability.SpeechSynthesis) || capabilities.Contains(LocalAiCapability.AudioGeneration)) return "transformers-audio";
             return "specialized-python";
     
     }

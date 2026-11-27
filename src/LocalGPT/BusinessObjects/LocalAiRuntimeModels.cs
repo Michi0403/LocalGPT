@@ -172,6 +172,12 @@ public sealed class LocalAiRuntimeStatus
     /// </summary>
     /// <value>The device summary value exposed by <see cref="LocalAiRuntimeStatus"/>.</value>
     public string DeviceSummary { get; set; } = string.Empty;
+
+    /// <summary>Next setup action for the current runtime state.</summary>
+    public string SetupGuidance { get; set; } = string.Empty;
+
+    /// <summary>PyTorch package profiles supported by the current operating system and architecture.</summary>
+    public IReadOnlyList<string> PyTorchProfileKeys { get; set; } = [];
     /// <summary>
     /// Gets or sets the message value that forms part of the local AI runtime status state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -306,6 +312,8 @@ public sealed class HuggingFaceModelSearchResult
 /// </summary>
 public sealed class LocalAiModelInstallRequest
 {
+    /// <summary>Downloads model files for a separately configured runtime extension without loading the model.</summary>
+    public bool SnapshotOnly { get; set; }
     /// <summary>
     /// Gets or sets the stable model identifier used to identify or correlate this local AI model install instance with related application state.
     /// </summary>
@@ -400,11 +408,36 @@ public sealed class LocalAiModelInstallation
     public DateTime InstalledAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>Installed model metadata suitable for HTTP and Council clients.</summary>
+public sealed record LocalAiInstalledModelInfo(
+    string InstallationId,
+    string ModelId,
+    string Revision,
+    string Adapter,
+    IReadOnlyList<LocalAiCapability> Capabilities,
+    bool TrustRemoteCode,
+    string SourceProvider,
+    string SourceReference,
+    string RuntimeModelName,
+    DateTime InstalledAtUtc)
+{
+    internal LocalAiInstalledModelInfo(LocalAiModelInstallation model)
+        : this(model.InstallationId, model.ModelId, model.Revision, model.Adapter, model.Capabilities,
+            model.TrustRemoteCode, model.SourceProvider, model.SourceReference, model.RuntimeModelName, model.InstalledAtUtc)
+    {
+    }
+}
+
+// Constructed by the managed runtime using fixed messages safe for setup UI and API clients.
+internal sealed class LocalAiModelVerificationException(string message) : InvalidOperationException(message);
+
 /// <summary>
 /// Represents the input contract for local AI runtime job, carrying the values a caller supplies to the corresponding application operation.
 /// </summary>
 public sealed class LocalAiRuntimeJobRequest
 {
+    internal string? ManagedWorkerExecutable { get; init; }
+
     /// <summary>
     /// Gets or sets the operation value that forms part of the local AI runtime job state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -606,6 +639,15 @@ public sealed class LocalAiImageGenerationRequest
     /// </summary>
     /// <value>The seed value exposed by <see cref="LocalAiImageGenerationRequest"/>.</value>
     public long? Seed { get; set; }
+}
+
+/// <summary>Requests an audio file from a verified audio or speech synthesis installation.</summary>
+public sealed class LocalAiAudioGenerationRequest
+{
+    /// <summary>Gets or sets the selected model installation.</summary>
+    public string ModelInstallationId { get; set; } = string.Empty;
+    /// <summary>Gets or sets the text supplied to the model.</summary>
+    public string Text { get; set; } = string.Empty;
 }
 
 /// <summary>

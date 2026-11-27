@@ -48,8 +48,9 @@ public interface IRuntimePluginService
     /// <param name="functionName">Function name value supplied to the runtime plugin operation and used when producing its result.</param>
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
+    /// <param name="approvedParameterSchema">Parameter schema reviewed by the central registry, including any selected model binding.</param>
     /// <returns>The DevExpress AI function invocation result produced by the operation.</returns>
-    Task<DxAiFunctionInvocationResult> InvokeAsync(string functionName, DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default);
+    Task<DxAiFunctionInvocationResult> InvokeAsync(string functionName, DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default, string? approvedParameterSchema = null);
     /// <summary>Returns a starter source template for the requested extension kind.</summary>
     /// <param name="kind">Kind value supplied to the runtime plugin operation and used when producing its result.</param>
     /// <returns>The string produced by the operation.</returns>

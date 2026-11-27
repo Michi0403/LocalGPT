@@ -97,7 +97,7 @@ namespace LocalGPT.Components.Pages
     /// Gets or sets the manual model name value that forms part of the model council state consumed or produced by the surrounding workflow.
     /// </summary>
     /// <value>The manual model name value exposed by <see cref="ModelCouncil"/>.</value>
-    string ManualModelName { get; set; } = "qwen3-coder:30b";
+    string ManualModelName { get; set; } = string.Empty;
     /// <summary>
     /// Gets or sets the custom poll feedback value that forms part of the model council state consumed or produced by the surrounding workflow.
     /// </summary>
@@ -118,7 +118,7 @@ namespace LocalGPT.Components.Pages
     /// <value>The request value exposed by <see cref="ModelCouncil"/>.</value>
     MultiModelCouncilRequest Request { get; set; } = new()
     {
-        Prompt = "Ask gpt-oss:20b and the coder model to design the best and most ethical LocalGPT multi-model council feature." + "\n\n" +
+        Prompt = "Ask the selected models to design the best and most ethical LocalGPT multi-model council feature." + "\n\n" +
             "Cover:\n" +
             "- how several models should peacefully negotiate and correct each other,\n" +
             "- how the transcript and visible reasoning notes should be shown to users,\n" +
@@ -259,9 +259,6 @@ namespace LocalGPT.Components.Pages
                    if (candidate is not null)
                        SelectedModels.Add(candidate.SelectionKey);
                }
-               if (SelectedModels.Count == 0)
-                   foreach (var candidate in Candidates.Where(candidate => candidate.IsInstalled || candidate.IsConfigured).Take(2))
-                       SelectedModels.Add(candidate.SelectionKey);
            }
 
            statusText = Candidates.Count == 0
@@ -472,22 +469,6 @@ namespace LocalGPT.Components.Pages
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
         }
 
-    }
-
-    /// <summary>
-    /// Performs join running council for <see cref="ModelCouncil"/>, keeping the operation consistent with the state and invariants of the surrounding model council workflow.
-    /// </summary>
-    private void JoinRunningCouncil()
-    {
-        try
-        {
-            Navigation.NavigateTo("/Chat?joinCouncil=active", forceLoad: true);
-        }
-        catch (Exception __componentMethodException)
-        {
-            Logger.LogError(__componentMethodException, "Component method ModelCouncil.JoinRunningCouncil failed.");
-            throw;
-        }
     }
 
     /// <summary>

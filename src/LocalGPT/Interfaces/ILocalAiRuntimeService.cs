@@ -169,6 +169,9 @@ public interface ILocalAiRuntimeService
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The local AI runtime job result produced by the operation.</returns>
     Task<LocalAiRuntimeJobResult> GenerateImageAsync(LocalAiImageGenerationRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Generates and publishes WAV audio using an installed audio model.</summary>
+    Task<LocalAiRuntimeJobResult> GenerateAudioAsync(LocalAiAudioGenerationRequest request, CancellationToken cancellationToken = default);
     /// <summary>
     /// Performs edit workspace image as part of the local AI runtime service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>

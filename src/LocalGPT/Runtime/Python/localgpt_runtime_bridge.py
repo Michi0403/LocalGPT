@@ -134,16 +134,26 @@ def _get_or_load_pipeline(kind: str, model_path: str, trust_remote_code: bool, d
                 if method is None:
                     raise ValueError("This Diffusers pipeline does not support the selected CPU offload method.")
                 method(gpu_id=gpu_id)
-    elif kind == "asr":
+    elif kind in ("asr", "audio"):
         from transformers import pipeline
-        pipe = pipeline(
-            "automatic-speech-recognition",
-            model=model_path,
-            device=torch.device(device),
-            torch_dtype=_dtype_for(torch, device),
-            trust_remote_code=bool(trust_remote_code),
-            local_files_only=True,
-        )
+        if kind == "asr":
+            pipe = pipeline(
+                "automatic-speech-recognition",
+                model=model_path,
+                device=torch.device(device),
+                torch_dtype=_dtype_for(torch, device),
+                trust_remote_code=bool(trust_remote_code),
+                local_files_only=True,
+            )
+        else:
+            pipe = pipeline(
+                "text-to-audio",
+                model=model_path,
+                device=torch.device(device),
+                dtype=torch.float32,
+                trust_remote_code=bool(trust_remote_code),
+                model_kwargs={"use_safetensors": True},
+            )
     else:
         raise ValueError(f"Unsupported pipeline kind: {kind}")
 
@@ -198,14 +208,12 @@ def _model_load_probe(parameters: dict, cancel_path: str) -> dict:
     if not model_path.is_dir():
         raise ValueError("The model-load probe requires an existing local model directory.")
     kind = str(parameters.get("kind", "")).strip()
-    if kind not in ("image", "image-edit", "video", "image-to-video", "asr"):
-        raise ValueError("No executable model-load adapter exists for the requested capability.")
     import torch
     device = _auto_device(torch, str(parameters.get("device", "auto")))
     _require_not_cancelled(cancel_path)
     pipeline, _ = _get_or_load_pipeline(kind, str(model_path),
         bool(parameters.get("trust_remote_code", False)), device, False,
-        str(parameters.get("memory_strategy", "native")) if kind != "asr" else "native")
+        "native" if kind in ("asr", "audio") else str(parameters.get("memory_strategy", "native")))
     _require_not_cancelled(cancel_path)
     del pipeline
     _release_device_cache(torch)
@@ -715,6 +723,49 @@ def _web_extract(parameters: dict, cancel_path: str) -> dict:
             browser.close()
 
 
+def _audio_generate(parameters: dict, cancel_path: str) -> dict:
+    import wave
+
+    import numpy as np
+    import torch
+
+    _require_not_cancelled(cancel_path)
+    text = str(parameters.get("text", "")).strip()
+    if not text or len(text) > 2000:
+        raise ValueError("Audio input must contain between 1 and 2000 characters.")
+    model_path = str(Path(str(parameters["model_path"])).resolve())
+    device = _auto_device(torch, str(parameters.get("device", "auto")))
+    cache_models = bool(parameters.get("cache_models", False))
+    pipe, _ = _get_or_load_pipeline(
+        "audio", model_path, bool(parameters.get("trust_remote_code", False)), device, cache_models)
+    _require_not_cancelled(cancel_path)
+    with torch.inference_mode():
+        result = pipe(text)
+    _require_not_cancelled(cancel_path)
+
+    sample_rate = int(result["sampling_rate"])
+    samples = np.asarray(result["audio"])
+    if samples.ndim == 1:
+        samples = samples[np.newaxis, :]
+    if (samples.ndim != 2 or samples.shape[0] not in (1, 2) or
+            not 8000 <= sample_rate <= 192000 or not 0 < samples.shape[1] <= sample_rate * 120):
+        raise ValueError("The audio adapter must return up to 120 seconds of mono or stereo audio.")
+    if not np.isfinite(samples).all():
+        raise ValueError("The audio adapter returned non-finite samples.")
+    pcm = (np.clip(samples.T, -1, 1) * 32767).astype("<i2")
+    output_path = str(parameters["output_path"])
+    with wave.open(output_path, "wb") as output:
+        output.setnchannels(samples.shape[0])
+        output.setsampwidth(2)
+        output.setframerate(sample_rate)
+        output.writeframes(pcm.tobytes())
+    if not cache_models:
+        del pipe
+        _release_device_cache(torch)
+    return {"status": "Completed", "artifact_path": output_path,
+            "metadata": {"device": device, "sampling_rate": str(sample_rate)}}
+
+
 _OPERATIONS = {
     "web_extract": _web_extract,
     "runtime_probe": _runtime_probe,
@@ -726,12 +777,13 @@ _OPERATIONS = {
     "video_generate": _video_generate,
     "image_to_video": _image_to_video,
     "speech_recognize": _speech_recognize,
+    "audio_generate": _audio_generate,
     "model_evict": _model_evict,
     "cache_clear": _cache_clear,
 }
 
 
-def run_job(request_path: str, result_path: str, cancel_path: str) -> int:
+def run_job(request_path: str, result_path: str, cancel_path: str, *, isolated: bool = False) -> int:
     """Execute one fixed LocalGPT runtime job while preserving module-level model caches."""
     try:
         job = _read_json(request_path)
@@ -741,6 +793,10 @@ def run_job(request_path: str, result_path: str, cancel_path: str) -> int:
             raise ValueError(f"Unsupported LocalGPT Python operation: {operation}")
         if not isinstance(parameters, dict):
             raise ValueError("LocalGPT runtime parameters must be a JSON object.")
+        if isolated and operation in ("audio_generate", "model_load_probe"):
+            # Set before imports so verification and inference use only installed files.
+            os.environ["HF_HUB_OFFLINE"] = "1"
+            os.environ["HF_DEACTIVATE_ASYNC_LOAD"] = "1"
         result = _OPERATIONS[operation](parameters, cancel_path)
         result.setdefault("status", "Completed")
         result["succeeded"] = True
@@ -760,7 +816,7 @@ def run_job(request_path: str, result_path: str, cancel_path: str) -> int:
 def main() -> int:
     if len(sys.argv) != 4:
         return 2
-    return run_job(sys.argv[1], sys.argv[2], sys.argv[3])
+    return run_job(sys.argv[1], sys.argv[2], sys.argv[3], isolated=True)
 
 
 if __name__ == "__main__":

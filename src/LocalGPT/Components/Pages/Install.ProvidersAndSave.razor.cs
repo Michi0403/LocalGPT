@@ -372,25 +372,6 @@ namespace LocalGPT.Components.Pages
         }
     }
 
-    /// <summary>
-    /// Performs use Ollama GPT oss20b for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
-    /// </summary>
-    /// <returns>A task that completes when the operation has finished.</returns>
-    private async Task UseOllamaGptOss20b()
-    {
-        try
-        {
-            var binding = UpsertOllamaHostBinding("http://localhost:11434", "gpt-oss:20b");
-            await Append($"Selected Ollama gpt-oss:20b at http://localhost:11434 as {(binding.IsPrimary ? "the primary" : "an additional")} endpoint-qualified host binding.").ConfigureAwait(false);
-            Notifier.ShowSuccess(toastName, "Ollama gpt-oss:20b selected.", "Model Selected");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "UseOllamaGptOss20b failed: {Message}", ex.Message);
-            Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-        }
-    }
-
     /// <summary>Adds this computer's canonical loopback Ollama endpoint without replacing independently configured remote hosts.</summary>
     /// <returns>A task that completes after the additive host binding is persisted.</returns>
     private async Task RegisterLocalOllamaHostAsync()

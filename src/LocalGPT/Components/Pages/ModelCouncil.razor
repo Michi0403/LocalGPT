@@ -82,7 +82,7 @@
                 <label class="manual-model">
                     Add legacy Ollama model name
                     <span>
-                        <DxTextBox @bind-Text="ManualModelName" NullText="qwen3-coder:30b" />
+                        <DxTextBox @bind-Text="ManualModelName" NullText="Enter an installed model name" />
                         <DxButton Text="Add"
                                   RenderStyle="ButtonRenderStyle.Secondary"
                                   RenderStyleMode="ButtonRenderStyleMode.Contained"
@@ -156,11 +156,7 @@
                                            ResourceLoadPercent="Request.ResourceLoadPercent" />
             </details>
             <div class="run-row">
-                <DxButton Text="Join running Council in Chat"
-                          RenderStyle="ButtonRenderStyle.Secondary"
-                          RenderStyleMode="ButtonRenderStyleMode.Outline"
-                          Enabled="@(!isBusy)"
-                          Click="JoinRunningCouncil" />
+                <a class="btn btn-outline-secondary" href="/Chat?joinCouncil=active" target="_blank" rel="noopener">Join running Council in Chat</a>
             </div>
 
             <div class="check-row">

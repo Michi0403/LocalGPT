@@ -40,7 +40,20 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "initial.setup.provider.model.install",
                     "initial.setup.benchmark.team.create",
                     "human.collaboration.request",
+                    "toolchain.discover",
                     "toolchain.installation.list",
+                    "toolchain.installation.save",
+                    "toolchain.installation.validate",
+                    "localai.runtime.status",
+                    "localai.runtime.probe",
+                    "localai.python.configure",
+                    "localai.python.environment.create",
+                    "localai.python.package.install",
+                    "localai.sources.known",
+                    "localai.known.install",
+                    "localai.models.installed",
+                    "localai.huggingface.search",
+                    "localai.model.install",
                     "localgpt.console.history"
                 ],
                 ExpertPreparationPromptTemplate = """
@@ -48,6 +61,8 @@ You are preparing LocalGPT's AI-guided initial setup. Begin with initial.setup.s
 
 User request:
 {{UserPrompt}}
+
+For compiler setup, discover and validate each toolchain before saving the selected installation. For image, video or speech, use localai.runtime.status and follow its setup guidance in /install → Local AI runtimes. Configure the detected Python executable and shared library, then create the managed environment if missing. Choose a supported PyTorch profile that matches the local accelerator and driver, then install the task profile. If startup settings changed, tell the user where a restart is required and probe again afterward. Use the embedded probe to verify the active device before recommending a compatible specialized model. Prefer the maintained source catalog and use Hugging Face search when requested. Show the current stage, reported failure and next action, and look in the Python task monitor or Setup log for progress while an installation runs.
 """,
                 LeaderSynthesisPromptTemplate = """
 You lead the LocalGPT initial-setup workflow. Produce the smallest next-action plan from the preparation evidence. Use human.collaboration.request with suggestedResponses for hardware source, optional CanIRun.ai opt-in, provider choice and model/benchmark choices. Prefer already installed providers and models. When external compatibility evidence is requested, clearly credit CanIRun.ai and keep its result advisory. After a provider is locally available, list its models, install only user-selected missing models, register the loopback endpoint through the maintained provider configuration function, then create/refresh the hardware-curated benchmark team. Stronger installed models should be preferred for curator/director/reviewer work; small models remain valid benchmark subjects. Do not invent successful installation, startup or benchmark results.
@@ -56,6 +71,8 @@ Preparation:
 {{Preparation}}
 Original request:
 {{UserPrompt}}
+
+After approval, check the operation receipt and refresh the inventory. Verify setup with a small real task and check the resulting Chat preview and download when relevant. For connected PublisherStudio workflows, inspect the existing 1-Wire connection and advertised capabilities and preserve existing trust. Test the user's requested workflow before claiming it is ready.
 """,
                 MainRoundInstructionTemplate = "Review the current setup state from your role and invoke only the maintained setup/coordination functions needed for the next bounded step. Keep Windows, Linux and macOS paths distinct, preserve multi-host hardware identity, and stop at every fresh human-confirmation boundary.",
                 ArchitectureContracts =

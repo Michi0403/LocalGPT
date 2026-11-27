@@ -23,6 +23,7 @@ public sealed partial class DatabaseInitializationService
     {
             var existing = await db.CouncilModelPresets.ToListAsync(token).ConfigureAwait(false);
             var previousBounded = CreateDefaultCouncilModelPresets(bounded: true);
+            var previousAuthored = CreateDefaultCouncilModelPresets(bounded: false);
             var presets = CreateDefaultCouncilModelPresets();
             foreach (var preset in presets)
             {
@@ -37,21 +38,15 @@ public sealed partial class DatabaseInitializationService
                 }
 
                 // Only evolve an unchanged shipped preset; retain user selections, IDs and custom roads.
-                var previous = previousBounded.Single(item => item.Name == preset.Name);
-                if (row.IsArchived || row.Description != previous.Description || row.ModelNamesJson != previous.ModelNamesJson
-                    || row.ModelRoutesJson != previous.ModelRoutesJson || row.MaxOutputTokens != previous.MaxOutputTokens
-                    || row.MaxContextTokens != previous.MaxContextTokens || row.MaxParallelModels != previous.MaxParallelModels
-                    || row.AllowParallelHardwareRoads != previous.AllowParallelHardwareRoads || row.IncludeMemory != previous.IncludeMemory
-                    || row.CreateProjectPerRun != previous.CreateProjectPerRun || row.GenerateArtifacts != previous.GenerateArtifacts
-                    || row.OllamaNumGpu != previous.OllamaNumGpu || row.IsUserApproved != previous.IsUserApproved)
+                if (row.IsArchived || (!MatchesShippedPreset(row, previousBounded.Single(item => item.Name == preset.Name))
+                    && !MatchesShippedPreset(row, previousAuthored.Single(item => item.Name == preset.Name))))
                     continue;
 
+                row.Description = preset.Description;
+                row.ModelNamesJson = preset.ModelNamesJson;
                 row.ModelRoutesJson = preset.ModelRoutesJson;
-                row.MaxOutputTokens = preset.MaxOutputTokens;
-                row.MaxContextTokens = preset.MaxContextTokens;
-                row.MaxParallelModels = preset.MaxParallelModels;
                 row.UpdatedAtUtc = DateTime.UtcNow;
-                logger.LogInformation("Restored authored hardware-road template for unchanged built-in Council preset {PresetName}.", row.Name);
+                logger.LogInformation("Removed shipped model bindings from unchanged built-in Council preset {PresetName}.", row.Name);
             }
     
     }
@@ -65,10 +60,54 @@ public sealed partial class DatabaseInitializationService
     }
 }
 
-    /// <summary>Builds the authoritative maintained model presets for additive repairs and post-commit verification.</summary>
-    /// <param name="bounded">Reconstructs the previously shipped bounded template for non-destructive seed evolution.</param>
-    /// <returns>The maintained preset templates.</returns>
-    private CouncilModelPreset[] CreateDefaultCouncilModelPresets(bool bounded = false)
+    private bool MatchesShippedPreset(CouncilModelPreset row, CouncilModelPreset previous)
+    {
+        if (row.ModelRoutesJson != previous.ModelRoutesJson)
+            return false;
+
+        return row.Description == previous.Description && row.ModelNamesJson == previous.ModelNamesJson
+            && row.MaxOutputTokens == previous.MaxOutputTokens && row.MaxContextTokens == previous.MaxContextTokens
+            && row.MaxParallelModels == previous.MaxParallelModels
+            && row.AllowParallelHardwareRoads == previous.AllowParallelHardwareRoads && row.IncludeMemory == previous.IncludeMemory
+            && row.CreateProjectPerRun == previous.CreateProjectPerRun && row.GenerateArtifacts == previous.GenerateArtifacts
+            && row.OllamaNumGpu == previous.OllamaNumGpu && row.IsUserApproved == previous.IsUserApproved;
+    }
+
+    /// <summary>Builds presets whose budgets apply to the models selected by the operator.</summary>
+    private CouncilModelPreset[] CreateDefaultCouncilModelPresets() =>
+    [
+        BuildModelNeutralPreset("Reactive ASCII Gameplay", "Low-latency settings for in-chat runtime games.", 3072, 16384, 1, includeMemory: false, createProjectPerRun: false),
+        BuildModelNeutralPreset("Adaptive Mixed Hardware Council", "General Council settings for mixed hardware.", 4096, 16384, 1, isDefault: true),
+        BuildModelNeutralPreset("Learning Round", "Settings for knowledge and memory maintenance.", 4096, 16384, 1),
+        BuildModelNeutralPreset("Large GPU Council (24 GB)", "Larger context budget for high-memory hardware.", 4096, 32768, 1),
+        BuildModelNeutralPreset("Fast Game Council (Low-B)", "Low-latency settings for game controllers, subdirectors and review.", 1536, 12288, 1, includeMemory: false, createProjectPerRun: false),
+        BuildModelNeutralPreset("Code Curator Council", "Settings for implementation and independent code review.", 4096, 32768, 1),
+        BuildModelNeutralPreset("Benchmark Candidate Pool", "Serial execution settings for the selected benchmark candidates.", 4096, 32768, 1, includeMemory: false, createProjectPerRun: false)
+    ];
+
+    private CouncilModelPreset BuildModelNeutralPreset(
+        string name, string description, int maxOutputTokens, int maxContextTokens, int maxParallel,
+        bool isDefault = false, bool includeMemory = true, bool createProjectPerRun = true) => new()
+    {
+        Name = name,
+        Description = description,
+        ModelNamesJson = "[]",
+        ModelRoutesJson = "[]",
+        AllowParallelHardwareRoads = true,
+        MaxOutputTokens = maxOutputTokens,
+        MaxContextTokens = maxContextTokens,
+        MaxParallelModels = maxParallel,
+        IncludeMemory = includeMemory,
+        GenerateArtifacts = false,
+        CreateProjectPerRun = createProjectPerRun,
+        IsDefault = isDefault,
+        IsUserApproved = true,
+        CreatedAtUtc = DateTime.UtcNow,
+        UpdatedAtUtc = DateTime.UtcNow
+    };
+
+    /// <summary>Reconstructs legacy shipped presets for comparison with existing rows during seed evolution.</summary>
+    private CouncilModelPreset[] CreateDefaultCouncilModelPresets(bool bounded)
     {
         try
         {

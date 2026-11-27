@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.BusinessObjects.EFCore;
 using LocalGPT.Interfaces;
+using LocalGPT.Runtime.Plugins;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,6 +22,7 @@ namespace LocalGPT.Services;
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="userFunctions">User devexpress ai function service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
 /// <param name="runtimePlugins">Runtime plugin service dependency used to expose persisted runtime-extension functions through the central DevExpress AI function registry.</param>
+/// <param name="runtimePluginDefinitionSupport">Reads the installed model binding of a runtime extension.</param>
 /// <param name="databaseInitialization">Database initialization dependency used to read persisted function policy without creating a registry/catalog dependency cycle.</param>
 /// <param name="dbContextFactory">Database context factory used to read persisted function policy without resolving the catalog service from the scoped service provider.</param>
 /// <param name="audit">Devexpress ai function invocation audit service dependency used by the DevExpress AI function workflow to provide the corresponding application capability.</param>
@@ -35,6 +37,7 @@ public sealed class DxAiFunctionRegistry(
     DxAiFunctionHandlerResolver handlerResolver,
     IUserDxAiFunctionService userFunctions,
     IRuntimePluginService runtimePlugins,
+    RuntimePluginDefinitionSupport runtimePluginDefinitionSupport,
     IDatabaseInitializationService databaseInitialization,
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDxAiFunctionInvocationAuditService audit,
@@ -218,7 +221,10 @@ public sealed class DxAiFunctionRegistry(
 
         // Persisted display policy may require *more* approvals, never waive the mandatory
         // write/safety gate for a live function descriptor.
-        var requiresHumanConfirmation = (catalogPolicy?.RequiresFrontendConfirmation ?? descriptor.RequiresHumanConfirmation)
+        var modelBoundPlugin = runtimeSource == "RuntimePlugin" &&
+            runtimePluginDefinitionSupport.ReadModelInstallationId(descriptor.ParameterSchemaJson) is not null;
+        var requiresHumanConfirmation = modelBoundPlugin
+            || (catalogPolicy?.RequiresFrontendConfirmation ?? descriptor.RequiresHumanConfirmation)
             || (!descriptor.IsReadOnly && !descriptor.IsCoordinationOnly)
             || (request.AutomaticInvocation && !descriptor.SupportsAutomaticInvocation);
 
@@ -278,7 +284,7 @@ public sealed class DxAiFunctionRegistry(
                     RequiresHumanApproval = requiresHumanConfirmation,
                     CanInvoke = true,
                     IsReadOnly = descriptor.IsReadOnly,
-                    ParameterSchemaJson = descriptor.ParameterSchemaJson
+                    ParameterSchemaJson = descriptor.ParameterSchemaJson ?? string.Empty
                 }
             };
         }
@@ -287,7 +293,9 @@ public sealed class DxAiFunctionRegistry(
         if (requiresHumanConfirmation)
         {
             var parameterFingerprint = BuildInvocationFingerprint(functionName, request);
-            var correlationId = string.IsNullOrWhiteSpace(request.ConfirmationSummaryHash)
+            if (modelBoundPlugin)
+                parameterFingerprint = $"{parameterFingerprint}:{schemaHash}";
+            var correlationId = modelBoundPlugin || string.IsNullOrWhiteSpace(request.ConfirmationSummaryHash)
                 ? $"dxai:{functionName}:{parameterFingerprint}"
                 : $"dxai:{functionName}:{request.ConfirmationSummaryHash.Trim()}";
             var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
@@ -378,7 +386,7 @@ public sealed class DxAiFunctionRegistry(
             var result = runtimeSource switch
             {
                 "UserFunction" => await userFunctions.InvokeAsync(functionName, request, cancellationToken).ConfigureAwait(false),
-                "RuntimePlugin" => await runtimePlugins.InvokeAsync(functionName, request, cancellationToken).ConfigureAwait(false),
+                "RuntimePlugin" => await runtimePlugins.InvokeAsync(functionName, request, cancellationToken, descriptor.ParameterSchemaJson).ConfigureAwait(false),
                 _ => await handler!.InvokeAsync(request, cancellationToken).ConfigureAwait(false)
             };
             result.FunctionName = functionName;

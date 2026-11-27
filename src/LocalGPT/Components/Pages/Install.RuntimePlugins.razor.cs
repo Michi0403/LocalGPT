@@ -2,6 +2,8 @@ using DevExpress.Blazor;
 using DevExpress.Blazor.Office;
 using LocalGPT.BusinessObjects;
 using LocalGPT.Runtime.Plugins;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace LocalGPT.Components.Pages;
 
@@ -10,6 +12,53 @@ namespace LocalGPT.Components.Pages;
 /// </summary>
 public partial class Install
 {
+    private string? RuntimePluginModelInstallationId
+    {
+        get
+        {
+            try
+            {
+                return RuntimePluginDefinitionSupport.ReadModelInstallationId(RuntimePluginDraft.ParameterSchemaJson);
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+        set
+        {
+            JsonObject? schema;
+            try
+            {
+                schema = JsonNode.Parse(RuntimePluginDraft.ParameterSchemaJson) as JsonObject;
+            }
+            catch (JsonException)
+            {
+                schema = null;
+            }
+
+            if (schema is null)
+            {
+                RuntimePluginStatus = "Correct the parameter JSON schema before selecting a model.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                schema.Remove(LocalGPT.Runtime.Plugins.RuntimePluginDefinitionSupport.ModelInstallationProperty);
+            }
+            else
+            {
+                schema[LocalGPT.Runtime.Plugins.RuntimePluginDefinitionSupport.ModelInstallationProperty] = value;
+                RuntimePluginDraft.RequiresHumanConfirmation = true;
+                RuntimePluginDraft.SupportsAutomaticInvocation = false;
+                RuntimePluginDraft.IsReadOnly = false;
+            }
+
+            RuntimePluginDraft.ParameterSchemaJson = schema.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        }
+    }
+
     /// <summary>
     /// Gets the runtime plugin kinds collection maintained or exposed by this install instance for downstream processing.
     /// </summary>

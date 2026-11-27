@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGptConfigurationRoot = LocalGPT.BusinessObjects.ConfigurationRoot;
 using LocalGPT.Interfaces;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -26,6 +27,7 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
         "video_generate",
         "image_to_video",
         "speech_recognize",
+        "audio_generate",
         "model_evict",
         "cache_clear"
     };
@@ -214,7 +216,7 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
                 try
                 {
                     using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(item.CancellationToken, cancellationToken);
-                    var result = await Task.Run(() => ExecuteOne(item.Request, linkedCancellation.Token), CancellationToken.None).ConfigureAwait(false);
+                    var result = await Task.Run(() => ExecuteOneAsync(item.Request, linkedCancellation.Token), CancellationToken.None).ConfigureAwait(false);
                     item.Completion.TrySetResult(result);
                 }
                 catch (OperationCanceledException exception)
@@ -256,11 +258,10 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     /// <param name="request">Request containing the caller-supplied values that control this operation.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The local AI runtime job result produced by the operation.</returns>
-    private LocalAiRuntimeJobResult ExecuteOne(LocalAiRuntimeJobRequest request, CancellationToken cancellationToken)
+    private async Task<LocalAiRuntimeJobResult> ExecuteOneAsync(LocalAiRuntimeJobRequest request, CancellationToken cancellationToken)
     {
     try
     {
-            EnsureInitialized();
             cancellationToken.ThrowIfCancellationRequested();
             var jobId = Guid.NewGuid();
             var scratchRoot = LocalGptApplicationDataPaths.ResolveUserPath("LocalAiRuntime", "Scratch");
@@ -277,6 +278,8 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
                 parameters["output_path"] = Path.Combine(jobDirectory, "generated.png");
             else if (request.Operation.Equals("video_generate", StringComparison.Ordinal) || request.Operation.Equals("image_to_video", StringComparison.Ordinal))
                 parameters["output_path"] = Path.Combine(jobDirectory, "generated.mp4");
+            else if (request.Operation.Equals("audio_generate", StringComparison.Ordinal))
+                parameters["output_path"] = Path.Combine(jobDirectory, "generated.wav");
 
             var envelope = new { operation = request.Operation, parameters };
             File.WriteAllText(requestPath, JsonSerializer.Serialize(envelope, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
@@ -287,11 +290,30 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
 
             try
             {
-                using var gil = AcquireGil();
-                ExecuteBridge(requestPath, resultPath, cancelPath);
+                if (request.ManagedWorkerExecutable is { } executable)
+                {
+                    var exitCode = await RunManagedWorkerAsync(executable, requestPath, resultPath, cancelPath, cancellationToken).ConfigureAwait(false);
+                    if (!File.Exists(resultPath))
+                    {
+                        logger.LogWarning("Managed Python inference worker exited with code {ExitCode} without a result.", exitCode);
+                        return new LocalAiRuntimeJobResult
+                        {
+                            JobId = jobId,
+                            Status = "WorkerExited",
+                            Message = $"The managed Python worker stopped (exit code {exitCode}). In /install, open Local AI runtimes and run the device probe. If it passes, release GPU memory or select another verified model."
+                        };
+                    }
+                }
+                else
+                {
+                    EnsureInitialized();
+                    using var gil = AcquireGil();
+                    ExecuteBridge(requestPath, resultPath, cancelPath);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
                 var result = ReadResult(jobId, resultPath);
                 if (result.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
-                    throw new OperationCanceledException("The embedded Python job was cancelled.", cancellationToken);
+                    throw new OperationCanceledException("The Python job was cancelled.", cancellationToken);
 
                 if (result.Metadata.TryGetValue("artifact_path", out var artifactPath) && File.Exists(artifactPath))
                 {
@@ -313,12 +335,47 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     catch (Exception __serviceMethodException)
     {
         if (__serviceMethodException is OperationCanceledException)
-            logger.LogDebug(__serviceMethodException, $"Service method {nameof(PythonNetRuntimeCoordinator)}.{nameof(ExecuteOne)} was canceled.");
+            logger.LogDebug(__serviceMethodException, $"Service method {nameof(PythonNetRuntimeCoordinator)}.{nameof(ExecuteOneAsync)} was canceled.");
         else
-            logger.LogError(__serviceMethodException, $"Service method {nameof(PythonNetRuntimeCoordinator)}.{nameof(ExecuteOne)} failed.");
+            logger.LogError("{ExceptionType} in {Method}; worker details omitted.", __serviceMethodException.GetType().Name, nameof(ExecuteOneAsync));
         throw;
     }
 }
+
+    /// <summary>Runs a fixed bridge job in the configured managed interpreter and waits for its exit.</summary>
+    private async Task<int> RunManagedWorkerAsync(string executable, string requestPath, string resultPath, string cancelPath, CancellationToken cancellationToken)
+    {
+        var bridgePath = Path.Combine(environment.ContentRootPath, "Runtime", "Python", "localgpt_runtime_bridge.py");
+        var startInfo = new ProcessStartInfo(executable)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (var argument in new[] { bridgePath, requestPath, resultPath, cancelPath })
+            startInfo.ArgumentList.Add(argument);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("The managed Python worker could not start.");
+        var drain = Task.WhenAll(process.StandardOutput.BaseStream.CopyToAsync(Stream.Null), process.StandardError.BaseStream.CopyToAsync(Stream.Null));
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            try { process.Kill(entireProcessTree: true); }
+            catch (InvalidOperationException) when (process.HasExited) { }
+            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
+        finally
+        {
+            await drain.ConfigureAwait(false);
+        }
+        return process.ExitCode;
+    }
 
     /// <summary>
     /// Ensures initialized for <see cref="PythonNetRuntimeCoordinator"/>, keeping the operation consistent with the state and invariants of the surrounding python net runtime workflow.

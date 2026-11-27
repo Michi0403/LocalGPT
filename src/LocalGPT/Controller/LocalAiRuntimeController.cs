@@ -9,11 +9,13 @@ namespace LocalGPT.Controller;
 /// <param name="runtime">Local AI runtime service.</param>
 /// <param name="logger">Logger used for controller diagnostics.</param>
 /// <param name="pythonJobs">Python job orchestration service dependency used by the local AI runtime workflow to provide the corresponding application capability.</param>
+/// <param name="modelCatalog">The optional Hugging Face metadata catalog.</param>
 [ApiController]
 [Route("api/local-ai/runtime")]
 public sealed class LocalAiRuntimeController(
     ILocalAiRuntimeService runtime,
     IPythonJobOrchestrationService pythonJobs,
+    IHuggingFaceModelCatalogService modelCatalog,
     ILogger<LocalAiRuntimeController> logger) : ControllerBase
 {
     /// <summary>Returns the current runtime policy and restart state.</summary>
@@ -84,5 +86,76 @@ public sealed class LocalAiRuntimeController(
     {
         try { return Results.Ok(await runtime.ProbeAsync(cancellationToken).ConfigureAwait(false)); }
         catch (Exception exception) { logger.LogError(exception, "Local AI runtime probe API failed; runtime paths were omitted from logs."); return Results.InternalServerError("Local AI runtime probe failed. Review LocalGPT logs."); }
+    }
+
+    /// <summary>Lists platform-supported Python package profiles.</summary>
+    [HttpGet("package-profiles")]
+    public IResult PackageProfiles() => Results.Ok(runtime.GetPackageProfiles());
+
+    /// <summary>Lists verified managed installations without returning machine-local paths.</summary>
+    [HttpGet("models")]
+    public IResult Models() => Results.Ok(runtime.GetInstalledModels().Select(model => new LocalAiInstalledModelInfo(model)).ToArray());
+
+    /// <summary>Returns the public metadata for one managed installation.</summary>
+    [HttpGet("models/{installationId}")]
+    public IResult Model(string installationId)
+    {
+        var model = runtime.GetInstalledModels().FirstOrDefault(item => item.InstallationId == installationId);
+        return model is null ? Results.NotFound() : Results.Ok(new LocalAiInstalledModelInfo(model));
+    }
+
+    /// <summary>Searches the optional Hugging Face catalog for model metadata.</summary>
+    [HttpPost("model-catalog/search")]
+    public async Task<IResult> SearchModelsAsync([FromBody] HuggingFaceModelSearchRequest request, CancellationToken cancellationToken)
+    {
+        try { return Results.Ok(await modelCatalog.SearchAsync(request, cancellationToken).ConfigureAwait(false)); }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception)
+        {
+            logger.LogWarning("Hugging Face metadata search failed with {ExceptionType}.", exception.GetType().Name);
+            return Results.Problem("Check Hugging Face availability and the selected filters in /install → Local AI runtimes.", statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
+
+    /// <summary>Downloads and verifies one approved model revision before registering it.</summary>
+    [HttpPost("models")]
+    [HumanApprovalRequired("localai.model.install", "Install specialized AI model", "Download and validate the selected model revision in LocalGPT's managed Python environment.", "High", "Local AI installation reviewer")]
+    public async Task<IResult> InstallModelAsync([FromBody] LocalAiModelInstallRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var installed = await runtime.InstallModelAsync(request, userConfirmed: true, cancellationToken).ConfigureAwait(false);
+            return Results.Created($"/api/local-ai/runtime/models/{Uri.EscapeDataString(installed.InstallationId)}", new LocalAiInstalledModelInfo(installed));
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (LocalAiModelVerificationException exception)
+        {
+            return Results.Problem(exception.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning("Managed model installation failed with {ExceptionType}.", exception.GetType().Name);
+            return Results.Problem("Check the managed Python environment, package profiles, and model compatibility in /install → Local AI runtimes.", statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    /// <summary>Removes one approved managed model installation.</summary>
+    [HttpDelete("models/{installationId}")]
+    [HumanApprovalRequired("localai.model.remove", "Remove specialized AI model", "Remove the selected model snapshot and its managed registration.", "High", "Local AI installation reviewer")]
+    public async Task<IResult> RemoveModelAsync(string installationId, CancellationToken cancellationToken)
+    {
+        if (!runtime.GetInstalledModels().Any(item => item.InstallationId == installationId))
+            return Results.NotFound();
+        try
+        {
+            await runtime.RemoveModelAsync(installationId, userConfirmed: true, cancellationToken).ConfigureAwait(false);
+            return Results.NoContent();
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception)
+        {
+            logger.LogWarning("Managed model removal failed with {ExceptionType}.", exception.GetType().Name);
+            return Results.Problem("The model could not be removed. Review the Local AI runtime status and setup log.");
+        }
     }
 }

@@ -77,6 +77,7 @@ namespace LocalGPT.Components.Pages
         /// Stores the internal local AI manual capability state used by <see cref="Install"/> while executing its surrounding workflow.
         /// </summary>
         private LocalAiCapability LocalAiManualCapability = LocalAiCapability.Unknown;
+        private bool LocalAiSnapshotOnly;
 
         private IEnumerable<LocalAiCapability> LocalAiInstallCapabilityOptions =>
             LocalAiCapabilityOptions.Where(capability => capability == LocalAiCapability.Unknown || LocalAiRuntime.SupportsModelCapability(capability));
@@ -345,7 +346,7 @@ namespace LocalGPT.Components.Pages
                 TrainingInterpreter = $"{probe.GetProperty("python_source").GetString()} · {probe.GetProperty("python_executable").GetString()}";
                 TrainingBackend = probe.GetProperty("backend").GetString();
                 var ready = readiness.GetProperty("ready").GetBoolean();
-                LocalAiStatusText = ready ? "LoRA training APIs are available." : readiness.GetProperty("problem").GetString();
+                LocalAiStatusText = ready ? "LoRA training APIs are available." : readiness.GetProperty("problem").GetString() ?? string.Empty;
                 if (readiness.TryGetProperty("remedy", out var remedy))
                     TrainingNextStep = remedy.GetString();
                 else if (TrainingBackend == "cpu")
@@ -555,8 +556,9 @@ namespace LocalGPT.Components.Pages
         private async Task InstallHuggingFaceModelAsync(HuggingFaceModelSearchResult model)
         {
             var capabilities = GetLocalAiInstallCapabilities(model);
-            if (LocalAiBusy || LocalAiStatus?.VirtualEnvironmentExists != true || capabilities.Count == 0)
+            if (LocalAiBusy || LocalAiStatus?.VirtualEnvironmentExists != true)
                 return;
+            var snapshotOnly = capabilities.Count == 0;
 
             try
             {
@@ -568,11 +570,14 @@ namespace LocalGPT.Components.Pages
                     ModelId = model.ModelId,
                     Revision = model.Revision,
                     Capabilities = capabilities.ToList(),
-                    TrustRemoteCode = LocalAiTrustRemoteCode,
+                    SnapshotOnly = snapshotOnly,
+                    TrustRemoteCode = !snapshotOnly && LocalAiTrustRemoteCode,
                     RequiresAuthentication = model.IsPrivate || model.IsGated
                 }, userConfirmed: true, progress: progress);
                 LocalAiInstalledModels = LocalAiRuntime.GetInstalledModels();
-                LocalAiStatusText = "Model snapshot installed and registered in the specialized capability inventory.";
+                LocalAiStatusText = snapshotOnly
+                    ? "Model files installed. Choose this installation in Toolchains → Runtime extensions to connect your adapter."
+                    : "Model snapshot installed and verified for the selected capabilities.";
             }
             catch (Exception exception)
             {
@@ -619,6 +624,8 @@ namespace LocalGPT.Components.Pages
         /// <returns>A value indicating whether the requested condition or operation succeeded.</returns>
         private IReadOnlyList<LocalAiCapability> GetLocalAiInstallCapabilities(HuggingFaceModelSearchResult model)
         {
+            if (LocalAiSnapshotOnly)
+                return [];
             if (LocalAiRuntime.SupportsModelCapability(LocalAiManualCapability))
                 return [LocalAiManualCapability];
 

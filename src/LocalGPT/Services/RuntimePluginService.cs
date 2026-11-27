@@ -4,6 +4,7 @@ using LocalGPT.Interfaces;
 using LocalGPT.Runtime.Plugins;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace LocalGPT.Services;
 
@@ -12,12 +13,14 @@ namespace LocalGPT.Services;
 /// <param name="databaseInitializer">Database initialization dependency.</param>
 /// <param name="executionHost">Runtime host that materializes and invokes explicitly loaded executable payloads.</param>
 /// <param name="definitionSupport">Validation and persistence-copy helpers for runtime extension definitions.</param>
+/// <param name="localAiRuntime">The owner of the installed local model inventory.</param>
 /// <param name="logger">Logger used for bounded operational diagnostics.</param>
 public sealed class RuntimePluginService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     RuntimePluginExecutionHost executionHost,
     RuntimePluginDefinitionSupport definitionSupport,
+    ILocalAiRuntimeService localAiRuntime,
     ILogger<RuntimePluginService> logger) : IRuntimePluginService
 {
     /// <summary>
@@ -95,6 +98,9 @@ public sealed class RuntimePluginService(
                 throw new InvalidOperationException("Saving executable runtime extension content requires explicit local confirmation.");
             var source = request.Plugin ?? throw new ArgumentException("Plugin definition is required.", nameof(request));
             definitionSupport.NormalizeAndValidate(source);
+            if (definitionSupport.ReadModelInstallationId(source.ParameterSchemaJson) is { } installationId &&
+                !localAiRuntime.GetInstalledModels().Any(model => model.InstallationId == installationId))
+                throw new ArgumentException("The selected model is missing. Install its snapshot in /install and select its current installation ID.");
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
             if (await db.RuntimePluginDefinitions.AnyAsync(item => item.Id != source.Id && item.FunctionName == source.FunctionName, cancellationToken).ConfigureAwait(false))
@@ -256,7 +262,7 @@ public sealed class RuntimePluginService(
     /// Performs invoke as part of the runtime plugin service workflow, applying the service's runtime policy, state management, and diagnostics as required.
     /// </summary>
     /// <inheritdoc />
-    public async Task<DxAiFunctionInvocationResult> InvokeAsync(string functionName, DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default)
+    public async Task<DxAiFunctionInvocationResult> InvokeAsync(string functionName, DxAiFunctionInvocationRequest request, CancellationToken cancellationToken = default, string? approvedParameterSchema = null)
     {
         try
         {
@@ -270,6 +276,24 @@ public sealed class RuntimePluginService(
                 definition = definitionSupport.Clone(definition);
             }
             var parameters = ParseParameters(request.Parameters);
+            var installationId = definitionSupport.ReadModelInstallationId(definition.ParameterSchemaJson);
+            if (installationId is not null || definitionSupport.ReadModelInstallationId(approvedParameterSchema) is not null)
+            {
+                if (!string.Equals(definition.ParameterSchemaJson, approvedParameterSchema, StringComparison.Ordinal))
+                    return Failure(functionName, request, "ModelBindingChanged", "The runtime extension's model selection changed. Review and approve a new call.");
+
+                var model = localAiRuntime.GetInstalledModels().FirstOrDefault(item => item.InstallationId == installationId);
+                if (model is null || !Directory.Exists(model.LocalPath))
+                    return Failure(functionName, request, "ModelMissing", "The runtime extension's model files are missing. Restore or reselect the model in /install.");
+
+                if (parameters.ValueKind != JsonValueKind.Object ||
+                    parameters.EnumerateObject().Any(property => property.Name.Equals("localgptModel", StringComparison.OrdinalIgnoreCase)))
+                    return Failure(functionName, request, "InvalidParameters", "The runtime extension takes object parameters and reserves localgptModel for the installed model.");
+
+                var arguments = JsonNode.Parse(parameters.GetRawText())!.AsObject();
+                arguments["localgptModel"] = JsonSerializer.SerializeToNode(new { modelId = model.ModelId, revision = model.Revision, localPath = model.LocalPath });
+                parameters = JsonSerializer.SerializeToElement(arguments);
+            }
             string value;
             if (definition.Kind == RuntimePluginKind.JavaScript)
             {

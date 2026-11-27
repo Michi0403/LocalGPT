@@ -12,6 +12,8 @@ namespace LocalGPT.Runtime.Plugins;
 /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the runtime plugin definition support workflow to provide the corresponding application capability.</param>
 public sealed class RuntimePluginDefinitionSupport(ILocalGptRuntimePolicyDataService runtimePolicy)
 {
+    public const string ModelInstallationProperty = "x-localgpt-model-installation-id";
+
     /// <summary>
     /// Normalizes and validate for <see cref="RuntimePluginDefinitionSupport"/>, keeping the operation consistent with the state and invariants of the surrounding runtime plugin definition support workflow.
     /// </summary>
@@ -29,6 +31,10 @@ public sealed class RuntimePluginDefinitionSupport(ILocalGptRuntimePolicyDataSer
         using var schema = JsonDocument.Parse(definition.ParameterSchemaJson);
         if (schema.RootElement.ValueKind != JsonValueKind.Object)
             throw new ArgumentException("Parameter schema must be a JSON object.");
+        if (schema.RootElement.TryGetProperty(ModelInstallationProperty, out var modelId) &&
+            (modelId.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(modelId.GetString())
+                || !definition.RequiresHumanConfirmation || definition.SupportsAutomaticInvocation || definition.IsReadOnly))
+            throw new ArgumentException("A runtime extension using an installed model must be a confirmed, non-automatic operation.");
         if (definition.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript or RuntimePluginKind.Python && string.IsNullOrWhiteSpace(definition.SourceCode))
             throw new ArgumentException("Script source is required.");
         definition.EntryAssemblyName = Bound(definition.EntryAssemblyName, 260);
@@ -42,7 +48,25 @@ public sealed class RuntimePluginDefinitionSupport(ILocalGptRuntimePolicyDataSer
     {
         ArgumentNullException.ThrowIfNull(definition);
         var value = $"{definition.Kind}\n{definition.SourceCode}\n{definition.PackagePayloadBase64}\n{definition.EntryAssemblyName}\n{definition.EntryTypeName}";
+        if (ReadModelInstallationId(definition.ParameterSchemaJson) is { } installationId)
+            value += $"\n{ModelInstallationProperty}={installationId}";
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+    }
+
+    /// <summary>Reads the installed model binding from the saved parameter schema.</summary>
+    /// <param name="parameterSchema">Saved extension parameter schema.</param>
+    /// <returns>The model installation ID, when assigned.</returns>
+    public string? ReadModelInstallationId(string? parameterSchema)
+    {
+        if (string.IsNullOrWhiteSpace(parameterSchema))
+            return null;
+
+        using var schema = JsonDocument.Parse(parameterSchema);
+        return schema.RootElement.ValueKind == JsonValueKind.Object &&
+               schema.RootElement.TryGetProperty(ModelInstallationProperty, out var id) &&
+               id.ValueKind == JsonValueKind.String
+            ? id.GetString()
+            : null;
     }
 
     /// <summary>Creates a detached copy suitable for runtime caches and UI editing.</summary>

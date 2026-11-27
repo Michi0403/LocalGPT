@@ -151,7 +151,7 @@
                     </div>
                     <ol>
                         <li>@T("Install.ProviderInstall.OllamaStep1", "Install Ollama, then start it if your installer did not start the service automatically. On macOS LocalGPT also detects the CLI inside /Applications/Ollama.app, so the vendor app can be installed manually even when no shell symlink exists.") <code>ollama serve</code></li>
-                        <li>@T("Install.ProviderInstall.OllamaStep2", "Pull at least one model. The maintained quick preset can use") <code>ollama pull gpt-oss:20b</code></li>
+                        <li>@T("Install.ProviderInstall.OllamaChooseModel", "Pull a model that suits your hardware, then discover your Ollama host below.")</li>
                         <li>@T("Install.ProviderInstall.OllamaStep3", "Return to this page, refresh process/connectivity status and select the discovered model. Native Ollama normally listens on") <code>http://127.0.0.1:11434</code></li>
                     </ol>
                 </article>
@@ -241,10 +241,6 @@
                       RenderStyleMode="ButtonRenderStyleMode.Contained"
                       Enabled="@(!IsDiscovering)"
                       Click="DiscoverLocalAiHosts" />
-            <DxButton Text="Use Ollama gpt-oss:20b"
-                      RenderStyle="ButtonRenderStyle.Primary"
-                      RenderStyleMode="ButtonRenderStyleMode.Outline"
-                      Click="UseOllamaGptOss20b" />
         </div>
 
         @if (!HasLocalLoopbackOllamaBinding)
@@ -1291,6 +1287,15 @@
                             <DxFormLayoutItem Caption="Parameter JSON Schema" ColSpanMd="12">
                                 <DxMemo @bind-Text="RuntimePluginDraft.ParameterSchemaJson" Rows="4" />
                             </DxFormLayoutItem>
+                            <DxFormLayoutItem Caption="Installed model" ColSpanMd="12">
+                                <DxComboBox Data="@LocalAiInstalledModels"
+                                            TextFieldName="@nameof(LocalAiModelInstallation.ModelId)"
+                                            ValueFieldName="@nameof(LocalAiModelInstallation.InstallationId)"
+                                            @bind-Value="RuntimePluginModelInstallationId"
+                                            ClearButtonDisplayMode="DataEditorClearButtonDisplayMode.Auto"
+                                            NullText="No model selected" />
+                                <small class="field-help">The approved extension receives its selected snapshot as <code>localgptModel</code> with <code>modelId</code>, <code>revision</code>, and <code>localPath</code>. The extension supplies the model adapter.</small>
+                            </DxFormLayoutItem>
 
                             @if (RuntimePluginDraft.Kind is RuntimePluginKind.CSharpScript or RuntimePluginKind.JavaScript or RuntimePluginKind.Python)
                             {
@@ -1454,6 +1459,7 @@
             @if (LocalAiStatus is not null)
             {
                 <p class="field-help">@LocalAiStatus.Message</p>
+                <p class="field-help" role="status">@LocalAiStatus.SetupGuidance</p>
                 <div class="local-ai-status-grid">
                     <span><strong>Configured</strong><small>@LocalAiStatus.Configured</small></span>
                     <span><strong>Python.NET</strong><small>@(LocalAiStatus.PythonNetAvailable ? "available" : "not installed")</small></span>
@@ -1633,9 +1639,10 @@
                         <DxComboBox Data="@LocalAiSearchSortOptions" @bind-Value="LocalAiSearchSort" />
                     </label>
                     <label>Explicit install capability
-                        <DxComboBox Data="@LocalAiInstallCapabilityOptions" @bind-Value="LocalAiManualCapability" />
+                        <DxComboBox Data="@LocalAiInstallCapabilityOptions" @bind-Value="LocalAiManualCapability" Enabled="@(!LocalAiSnapshotOnly)" />
                     </label>
-                    <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="LocalAiTrustRemoteCode" /> Allow <code>trust_remote_code</code> for the model I explicitly install</label>
+                    <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="LocalAiSnapshotOnly" /> Download model files for a runtime extension</label>
+                    <label class="local-ai-trust-toggle"><DxCheckBox @bind-Checked="LocalAiTrustRemoteCode" Enabled="@(!LocalAiSnapshotOnly)" /> Allow <code>trust_remote_code</code> during verified installation</label>
                     <DxButton Text="Search Hugging Face" RenderStyle="ButtonRenderStyle.Primary" Enabled="@(!LocalAiBusy)" Click="SearchHuggingFaceAsync" />
                     <DxButton Text="Recent liked in category" RenderStyle="ButtonRenderStyle.Secondary" Enabled="@(!LocalAiBusy)" Click="LoadRecentLikedHuggingFaceAsync" />
                 </div>
@@ -1659,16 +1666,10 @@
                                 <CellDisplayTemplate Context="hfModelCell">
                                     @if (hfModelCell.DataItem is HuggingFaceModelSearchResult model)
                                     {
-                                        @if (GetLocalAiInstallCapabilities(model).Count == 0)
-                                        {
-                                            <small>No runtime adapter</small>
-                                        }
-                                        else
-                                        {
-                                            <DxButton Text="Install snapshot" RenderStyle="ButtonRenderStyle.Primary"
-                                                      Enabled="@(!LocalAiBusy && LocalAiStatus?.VirtualEnvironmentExists == true)"
-                                                      Click="@(() => InstallHuggingFaceModelAsync(model))" />
-                                        }
+                                        <DxButton Text="@(GetLocalAiInstallCapabilities(model).Count == 0 ? "Download files" : "Install and verify")"
+                                                  RenderStyle="ButtonRenderStyle.Primary"
+                                                  Enabled="@(!LocalAiBusy && LocalAiStatus?.VirtualEnvironmentExists == true)"
+                                                  Click="@(() => InstallHuggingFaceModelAsync(model))" />
                                     }
                                 </CellDisplayTemplate>
                             </DxGridDataColumn>
@@ -1690,7 +1691,7 @@
                         {
                             <article class="toolchain-card">
                                 <header><div><h4>@model.ModelId</h4><small>@model.Adapter · @model.Revision</small></div></header>
-                                <small>Capabilities: @LocalAiRuntime.FormatCapabilities(model.Capabilities)</small>
+                                <small>@(model.Capabilities.Count == 0 ? "Model files for runtime extensions" : $"Capabilities: {LocalAiRuntime.FormatCapabilities(model.Capabilities)}")</small>
                                 @if (!string.IsNullOrWhiteSpace(model.SourceProvider))
                                 {
                                     <small>Source: @model.SourceProvider@(string.IsNullOrWhiteSpace(model.RuntimeModelName) ? string.Empty : $" · {model.RuntimeModelName}")</small>

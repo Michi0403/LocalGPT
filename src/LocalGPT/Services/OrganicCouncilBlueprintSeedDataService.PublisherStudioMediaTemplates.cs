@@ -20,26 +20,24 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                 _ => "If the audio workflow is ambiguous, ask whether to generate new audio or edit an existing track in PublisherStudio Audio Studio."
             };
             const string sourceEditInstruction = "An explicit request to trim, cut or edit supplied media already selects editing. Use the connected PublisherStudio capability teaching and the attached workspace. Do not probe model inventories, hardware, Python or generators for this edit.";
-            var generationInstruction = category switch
-            {
-                "image" => "For model-based image creation, call localai.image.generate with modelInstallationId set to the exact installationId returned by localai.models.installed for an image generator, and prompt set to the requested image description.",
-                "video" => "For model-based video creation, call localai.video.generate with modelInstallationId set to the exact installationId returned by localai.models.installed for a video generator, and prompt set to the requested video description.",
-                _ => "For audio generation, use the advertised function and its input schema when a compatible installed generator is available."
-            };
+            var generationInstruction = $"For model-based {category} creation, start with the team's preferred capabilities and discover an enabled generator that matches the requested capability. Inspect its current schema. If it accepts an installation ID, use the exact ID of a compatible model from the installed-model inventory. If the preferred tool is unavailable, discover another enabled tool that matches. Refresh the inventory when the ID was not verified during readiness.";
             var preferred = new List<string>
             {
-                "localai.runtime.status", "localai.runtime.configuration", "toolchain.discover", "localai.models.installed",
+                "dxai.tools.discover",
+                "localai.runtime.status", "localai.runtime.probe", "localai.runtime.configuration", "toolchain.discover", "localai.models.installed",
                 "localai.python.configure", "localai.python.environment.create", "localai.python.package.install",
-                "localai.sources.known", "localai.huggingface.search", "localai.model.install",
+                "localai.sources.known", "localai.known.install", "localai.huggingface.search", "localai.model.install",
                 "initial.setup.canirun.recommendations",
                 "publisher.media.capabilities", "publisher.file.formats", "publisher.export.formats", "publisher.browser.view.inspect",
                 "organic.plugin.invoke", "organic.plugin.work.read",
                 "publisher.panel.modules.inspect", "publisher.panel.module.invoke"
             };
-            if (string.Equals(category, "image", StringComparison.Ordinal))
-                preferred.AddRange(["localai.image.generate", "publisher.input.execute", "publisher.input.result"]);
-            if (string.Equals(category, "video", StringComparison.Ordinal))
-                preferred.Add("localai.video.generate");
+            preferred.AddRange(category switch
+            {
+                "image" => ["localai.image.generate", "publisher.input.execute", "publisher.input.result"],
+                "video" => ["localai.video.generate"],
+                _ => ["localai.audio.generate"]
+            });
             return new OrganicCouncilTeamDefinition
             {
                 Key = teamKey,
@@ -60,7 +58,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     "Determine whether the user made a choice from their own messages. A Council step's recommendation or a generic request to create media does not select a workflow.",
                     "If a choice is still needed, ask in the user-visible response and stop before generation, editor input or model setup. If the user already chose a path, use it. If export is requested, use the currently advertised formats and ask for the target only when required.",
                     "Use localai.models.installed as the source for specialized generator availability and installation IDs. Ollama chat, vision analysis and OCR inventories cannot establish image or video generation capability. Use LocalGPT's Local AI setup for specialized model suggestions or installation.",
-                    "On a fresh installation, check localai.runtime.status and toolchain.discover before selecting a model. Surface missing runtimes and the corresponding /install setup steps. Prefer known catalog sources, released checkpoint formats and an installation that does not require remote code. Check the model requirements against the observed hardware and request the normal approval for the exact model.",
+                    "For a fresh generation setup, use localai.runtime.status and its /install guidance before selecting a model. Use localai.runtime.probe to verify the active PyTorch device. Match the package profile to the accelerator and driver. Prefer maintained catalog sources and compatible checkpoints that need no remote code. Explain the current setup stage and request the normal approval for the exact model.",
                     "If the requested generation needs setup, queue the appropriate approval card for the next missing prerequisite or compatible Hugging Face model. Wait for its actual approval result before dependent actions. Check the installation receipt and refresh localai.models.installed before attempting generation.",
                     "Never claim a video/image/audio was created unless an actual output file or validated media receipt exists.",
                     "Do not send hardware details to CanIRun.ai without its existing fresh human approval. Review installed models and source evidence first; never hard-code model rankings.",
@@ -76,7 +74,7 @@ public sealed partial class OrganicCouncilBlueprintSeedDataService
                     Step($"{category}-authoring", "Create or plan approved media", 20, "Execution", "Media author",
                         $"If the workflow is ambiguous, ask the choice question and stop. For an explicit cut or trim of a Chat attachment, invoke the connected PublisherStudio operation whose advertised schema accepts the requested range and returns the resulting file. Call organic.plugin.invoke with the advertised peer and capability, the original workspaceName and fileName in attachment, and timestamps in payload according to that schema. If the result already contains a download, report it and stop issuing actions. Use an editor session only when the selected operation requires one. {generationInstruction} Include optional fields only when needed and use their schema types. If validation rejects the call before approval, correct the indicated fields and retry once. Let LocalGPT show its approval card. Report the actual file, pending approval or actionable blocker. Task: {{{{UserPrompt}}}}\nEvidence: {{{{Transcript}}}}",
                         "LeaderSingle", canUseOrganicFunctions: true, waitForDeferredApprovalsBeforeNextStep: true,
-                        allowedAutomaticFunctions: ["organic.plugin.work.read"]),
+                        allowedAutomaticFunctions: ["dxai.tools.discover", "localai.models.installed", "organic.plugin.work.read"]),
                     Step($"{category}-verify", "Review output and handoff", 30, "Review", "Result reviewer",
                         $"Recheck the user's task for an explicit workflow selection before reviewing results. {choiceInstruction} If there is no selection, answer with the choice question even if the transcript contains guesses about installed models. Otherwise identify produced files/receipts and supported PublisherStudio insertion steps. State outstanding approval or compatibility gaps. Task: {{{{UserPrompt}}}}\nTranscript: {{{{Transcript}}}}",
                         "LeaderSingle", producesFinalAnswer: true)

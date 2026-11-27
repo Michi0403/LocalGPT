@@ -964,23 +964,24 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-        do
+        while (!stoppingToken.IsCancellationRequested)
         {
             foreach (var pending in pendingCouncils.GetSnapshot())
             {
                 if (stoppingToken.IsCancellationRequested)
                     break;
-                if (pending.Envelope.ExpiresUtc is { } expires && expires <= DateTimeOffset.UtcNow)
-                {
-                    pendingCouncils.Remove(pending.Envelope.CorrelationId, out _);
-                    await SendErrorAsync(pending.Envelope, "The pending 1-Wire request expired before approval.", stoppingToken).ConfigureAwait(false);
-                    continue;
-                }
-                if (pending.LastCheckedUtc > DateTimeOffset.UtcNow - TimeSpan.FromMilliseconds(750))
-                    continue;
-                pendingCouncils.MarkChecked(pending.Envelope.CorrelationId);
                 try
                 {
+                    if (pending.Envelope.ExpiresUtc is { } expires && expires <= DateTimeOffset.UtcNow)
+                    {
+                        if (pendingCouncils.Remove(pending.Envelope.CorrelationId, out _))
+                            await SendErrorAsync(pending.Envelope, "The pending 1-Wire request expired before approval.", stoppingToken).ConfigureAwait(false);
+                        continue;
+                    }
+                    if (pending.LastCheckedUtc > DateTimeOffset.UtcNow - TimeSpan.FromMilliseconds(750))
+                        continue;
+                    pendingCouncils.MarkChecked(pending.Envelope.CorrelationId);
+
                     var gate = await humanCollaboration.AuthorizeOrEnqueueAsync(
                         targetApprovalPolicy.Create(pending.Envelope),
                         directHumanConfirmation: false,
@@ -1038,7 +1039,17 @@ public sealed class OneWireCouncilApprovalProcessorHostedService(
                     logger.LogError(ex, "Could not resume pending organic request {CorrelationId}.", pending.Envelope.CorrelationId);
                 }
             }
-        } while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false));
+            try
+            {
+                if (stoppingToken.IsCancellationRequested
+                    || !await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
+                    return;
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+        }
     }
 
     /// <summary>

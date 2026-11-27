@@ -823,7 +823,8 @@ namespace LocalGPT.Components.Pages
         DiagnosticCouncilModelNames = ReconcileAvailableProviderSelectionKeys(DiagnosticCouncilModelNames, "Diagnostic Council");
         SynchronizeSelectedCouncilRoutes();
 
-        if (SelectedCouncilModelNames.Count == 0 && DiagnosticCouncilModelNames.Count == 0 && !hadUnavailableProviderSelections)
+        if (SelectedModelPreset is null && SelectedCouncilModelNames.Count == 0
+            && DiagnosticCouncilModelNames.Count == 0 && !hadUnavailableProviderSelections)
         {
             var preferences = PreferredCouncilOptions.CurrentValue.AICore?.PreferredCouncilModelKeys ?? [];
             foreach (var key in preferences.Take(Catalog.MaxParticipants))
@@ -833,13 +834,7 @@ namespace LocalGPT.Components.Pages
                 if (preferredCandidate is not null && !SelectedCouncilModelNames.Contains(preferredCandidate.SelectionKey, StringComparer.OrdinalIgnoreCase))
                     SelectedCouncilModelNames.Add(preferredCandidate.SelectionKey);
             }
-            if (SelectedCouncilModelNames.Count == 0)
-            {
-                var fallback = OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled && candidate.ModelName.Equals("gpt-oss:20b", StringComparison.OrdinalIgnoreCase))
-                    ?? OllamaCandidates.FirstOrDefault(candidate => candidate.IsInstalled);
-                if (fallback is not null)
-                    SelectedCouncilModelNames.Add(fallback.SelectionKey);
-            }
+            SynchronizeSelectedCouncilRoutes();
         }
 
         var preferCouncilByDefault = !hasUserSelectedSession
