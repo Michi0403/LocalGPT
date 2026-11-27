@@ -19,7 +19,7 @@ public sealed class ToolchainKnowledgeController(
     /// <summary>Lists the current knowledge-backed discovery profiles.</summary>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
-    [HttpGet("profiles")]
+    [HttpGet("knowledge/profiles")]
     public async Task<IResult> ProfilesAsync(CancellationToken cancellationToken)
     {
         try { return Results.Ok(await knowledge.GetProfilesAsync(cancellationToken).ConfigureAwait(false)); }

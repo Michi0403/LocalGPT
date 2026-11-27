@@ -523,19 +523,19 @@ def _speech_recognize(parameters: dict, cancel_path: str) -> dict:
     maximum_seconds = int(parameters.get("maximum_audio_seconds", 7200))
     minimum_bytes_per_second = int(parameters.get("minimum_audio_bytes_per_second", 768))
     duration = 0.0
-    decode_errors = []
+    audio_info = None
     try:
         import soundfile as sf
         audio_info = sf.info(str(info))
         duration = float(audio_info.duration or 0.0)
-    except Exception as exc:
-        decode_errors.append(type(exc).__name__)
+    except Exception:
+        pass
     if duration <= 0:
         try:
             import librosa
             duration = float(librosa.get_duration(path=str(info)) or 0.0)
-        except Exception as exc:
-            decode_errors.append(type(exc).__name__)
+        except Exception:
+            pass
     if duration <= 0:
         raise ValueError("Audio input has no decodable duration for admission checks.")
     if duration > maximum_seconds:
@@ -578,7 +578,17 @@ def _speech_recognize(parameters: dict, cancel_path: str) -> dict:
             options["language"] = language
         if initial_prompt:
             options["initial_prompt"] = initial_prompt
-        result = model.transcribe(str(info), **options)
+        audio = str(info)
+        if (
+            audio_info is not None
+            and audio_info.format in ("WAV", "WAVEX")
+            and audio_info.subtype == "PCM_16"
+            and audio_info.channels == 1
+            and audio_info.samplerate == whisper.audio.SAMPLE_RATE
+        ):
+            # Browser recordings already match Whisper's waveform format.
+            audio, _ = sf.read(str(info), frames=audio_info.frames, dtype="float32")
+        result = model.transcribe(audio, **options)
         _require_not_cancelled(cancel_path)
         text = result.get("text", "") if isinstance(result, dict) else str(result)
         if not cache_models:

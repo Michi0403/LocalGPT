@@ -66,28 +66,30 @@ function Get-MacFileInventory([string]$AppPath) {
     $files = @(Get-ChildItem -LiteralPath $AppPath -File -Recurse -ErrorAction Stop)
     if ($files.Count -eq 0) { return @() }
 
-    # `file` used to be invoked once per bundle file. On macOS every native child launch can emit
-    # a MallocStackLogging diagnostic from PowerShell before exec, turning a documentation-bearing
-    # app into hundreds of warning lines and thousands of process launches across architecture
-    # validation and signing. Brief-mode batches preserve one result per input while staying well
-    # below macOS command-line limits.
+    # The macOS file utility emits multiple description lines for universal binaries.
+    # Two -0 flags delimit both filename and description without losing the slices.
     $inventory = [Collections.Generic.List[object]]::new()
     $batchSize = 96
     for ($offset = 0; $offset -lt $files.Count; $offset += $batchSize) {
         $count = [Math]::Min($batchSize, $files.Count - $offset)
         $batch = @($files[$offset..($offset + $count - 1)])
         $paths = @($batch | ForEach-Object { $_.FullName })
-        $descriptions = @(& $fileCommand -b @paths 2>$null | ForEach-Object { [string]$_ })
+        $output = (& $fileCommand -0 -0 -- @paths 2>$null) -join "`n"
         if ($LASTEXITCODE -ne 0) {
             throw "The macOS 'file' utility failed while inspecting a $count-file bundle batch starting at index $offset."
         }
-        if ($descriptions.Count -ne $batch.Count) {
-            throw "The macOS 'file' utility returned $($descriptions.Count) descriptions for $($batch.Count) bundle files; refusing to trust an incomplete architecture inventory."
+        $fields = $output.Split([char]0)
+        if ($fields.Count -ne (2 * $batch.Count + 1) -or $fields[-1] -cne '') {
+            throw "The macOS 'file' utility returned malformed inventory records for the $count-file batch starting at index $offset."
         }
         for ($index = 0; $index -lt $batch.Count; $index++) {
+            $fieldIndex = 2 * $index
+            if ($fields[$fieldIndex] -cne $paths[$index] -or [string]::IsNullOrWhiteSpace($fields[$fieldIndex + 1])) {
+                throw "The macOS 'file' utility returned no matching architecture description for '$($paths[$index])'."
+            }
             $inventory.Add([pscustomobject]@{
                 File = $batch[$index]
-                Description = $descriptions[$index]
+                Description = $fields[$fieldIndex + 1]
             })
         }
     }

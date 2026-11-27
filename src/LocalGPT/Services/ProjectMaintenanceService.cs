@@ -618,7 +618,11 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
             var compiler = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.Id == compilerId, cancellationToken).ConfigureAwait(false)
                 ?? throw new KeyNotFoundException($"Compiler installation {compilerId} was not found.");
             var previousVersion = compiler.Version;
-            var result = await RunProcessAsync(compiler.ExecutablePath, compiler.ValidationArguments, compiler.CompilerHomePath, compiler.EnvironmentVariablesJson, 30, cancellationToken).ConfigureAwait(false);
+            var incompatiblePython = compiler.Language.Equals("Python", StringComparison.OrdinalIgnoreCase)
+                && !platform.IsCompatiblePythonBinary(compiler.ExecutablePath);
+            var result = incompatiblePython
+                ? (ExitCode: -1, Output: "Select an arm64 or universal Python interpreter on Apple silicon.")
+                : await RunProcessAsync(compiler.ExecutablePath, compiler.ValidationArguments, compiler.CompilerHomePath, compiler.EnvironmentVariablesJson, 30, cancellationToken).ConfigureAwait(false);
             compiler.LastValidatedAtUtc = DateTime.UtcNow;
             compiler.LastValidationSucceeded = result.ExitCode == 0;
             compiler.LastValidationMessage = Trim(result.Output, 4000);

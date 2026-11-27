@@ -60,7 +60,6 @@ namespace LocalGPT
                 builder.Services
                .AddOptions<LocalGPT.BusinessObjects.ConfigurationRoot>()
                .Bind(builder.Configuration);
-                builder.Services.Configure<LocalGPT.BusinessObjects.ConfigurationRoot>(builder.Configuration);
                 builder.Services.Configure<NativeCommandOptions>(
                     builder.Configuration.GetSection(NativeCommandOptions.SectionName));
                 builder.Services.Configure<RemoteWebEndpointOptions>(

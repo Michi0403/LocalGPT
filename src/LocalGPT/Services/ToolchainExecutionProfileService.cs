@@ -10,11 +10,13 @@ namespace LocalGPT.Services;
 
 /// <summary>Owns database-backed reusable toolchain execution profiles and bounded shell-free process execution.</summary>
 /// <param name="dbContextFactory">Local gpt memory database context dependency used by the toolchain execution profile workflow to provide the corresponding application capability.</param>
+/// <param name="platform">Checks whether a registered interpreter can run natively on this host.</param>
 /// <param name="databaseInitializer">Database initialization service dependency used by the toolchain execution profile workflow to provide the corresponding application capability.</param>
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 public sealed class ToolchainExecutionProfileService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
+    IPlatformRuntimeService platform,
     ILogger<ToolchainExecutionProfileService> logger) : IToolchainExecutionProfileService
 {
     /// <summary>
@@ -212,6 +214,10 @@ public sealed class ToolchainExecutionProfileService(
             }
 
             var executable = ResolveExecutable(profile, installation);
+            if (installation is not null && installation.Language.Equals("Python", StringComparison.OrdinalIgnoreCase)
+                && platform.PathComparer.Equals(executable, Path.GetFullPath(installation.ExecutablePath))
+                && !platform.IsCompatiblePythonBinary(executable))
+                throw new InvalidOperationException("Select a native arm64 or universal Python installation for this process profile on Apple silicon.");
             if (!File.Exists(executable))
                 throw new FileNotFoundException("The configured toolchain executable does not exist.", executable);
             var arguments = BuildArguments(profile, request.Arguments);

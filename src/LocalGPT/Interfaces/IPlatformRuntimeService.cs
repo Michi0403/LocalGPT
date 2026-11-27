@@ -18,6 +18,16 @@ public interface IPlatformRuntimeService
     /// <value>The provider bootstrap token value exposed by <see cref="IPlatformRuntimeService"/>.</value>
     string ProviderBootstrapToken { get; }
 
+    /// <summary>Checks native architecture before starting a Python interpreter or loading its shared library on Apple silicon.</summary>
+    /// <param name="path">Absolute interpreter or shared library path.</param>
+    /// <returns>Whether the host can use this Python binary without Intel translation.</returns>
+    bool IsCompatiblePythonBinary(string path);
+
+    /// <summary>Checks whether the host OS version and architecture support a PyTorch accelerator profile.</summary>
+    /// <param name="backend">The accelerator backend key.</param>
+    /// <returns>Whether a compatible platform wheel can be offered on this host.</returns>
+    bool SupportsPyTorchBackend(string backend);
+
     /// <summary>Returns the host-native filename for an executable without invoking any shell or host interpreter.</summary>
     /// <param name="baseName">Executable base name without a platform extension.</param>
     /// <returns>The executable filename for the host platform.</returns>

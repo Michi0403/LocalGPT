@@ -1,6 +1,7 @@
 using LocalGPT.BusinessObjects;
 using LocalGPT.Interfaces;
 using System.Runtime.InteropServices;
+using System.Buffers.Binary;
 
 namespace LocalGPT.Services;
 
@@ -20,7 +21,19 @@ public sealed class WindowsPlatformRuntimeService : IPlatformRuntimeService
     public string ProviderBootstrapToken => "windows";
 
     /// <inheritdoc />
+    public bool IsCompatiblePythonBinary(string path) => true;
+
+    /// <inheritdoc />
     public string GetNativeExecutableName(string baseName) => baseName + ".exe";
+
+    /// <inheritdoc />
+    public bool SupportsPyTorchBackend(string backend) =>
+        RuntimeInformation.OSArchitecture == Architecture.X64 && (backend switch
+        {
+            "cuda" or "rocm" => true,
+            "xpu" => OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000),
+            _ => false
+        });
 
     /// <summary>
     /// Gets the path comparer used by this windows platform runtime instance to locate the associated file-system resource.
@@ -173,7 +186,62 @@ public sealed class UnixPlatformRuntimeService : IPlatformRuntimeService
     public string ProviderBootstrapToken => isMacOS ? "macos" : isLinux ? "linux" : "other";
 
     /// <inheritdoc />
+    public bool IsCompatiblePythonBinary(string path)
+    {
+        if (!isMacOS || RuntimeInformation.OSArchitecture != Architecture.Arm64)
+            return true;
+
+        // Inspect the Mach-O headers before launching anything. An x86-only interpreter
+        // can successfully answer a version probe through Rosetta and appear usable.
+        const uint arm64Cpu = 0x0100000C;
+        try
+        {
+            using var stream = File.OpenRead(path);
+            Span<byte> header = stackalloc byte[8];
+            stream.ReadExactly(header);
+            uint magic = BinaryPrimitives.ReadUInt32BigEndian(header);
+            if (magic == 0xCFFAEDFE)
+                return BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) == arm64Cpu;
+            if (magic == 0xFEEDFACF)
+                return BinaryPrimitives.ReadUInt32BigEndian(header[4..]) == arm64Cpu;
+            if (magic is not (0xCAFEBABE or 0xCAFEBABF or 0xBEBAFECA or 0xBFBAFECA))
+                return false;
+
+            bool littleEndian = magic is 0xBEBAFECA or 0xBFBAFECA;
+            int stride = magic is 0xCAFEBABF or 0xBFBAFECA ? 32 : 20;
+            uint count = littleEndian ? BinaryPrimitives.ReadUInt32LittleEndian(header[4..])
+                : BinaryPrimitives.ReadUInt32BigEndian(header[4..]);
+            if (count == 0 || count > 64 || stream.Length < 8L + stride * count)
+                return false;
+            for (int index = 0; index < count; index++)
+            {
+                stream.Position = 8L + index * stride;
+                stream.ReadExactly(header[..4]);
+                uint cpu = littleEndian ? BinaryPrimitives.ReadUInt32LittleEndian(header)
+                    : BinaryPrimitives.ReadUInt32BigEndian(header);
+                if (cpu == arm64Cpu)
+                    return true;
+            }
+            return false;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            System.Diagnostics.Trace.TraceWarning("Python architecture inspection failed: {0}", exception.GetType().Name);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
     public string GetNativeExecutableName(string baseName) => baseName;
+
+    /// <inheritdoc />
+    public bool SupportsPyTorchBackend(string backend) =>
+        backend switch
+        {
+            "mps" => OperatingSystem.IsMacOSVersionAtLeast(14) && RuntimeInformation.ProcessArchitecture == Architecture.Arm64,
+            "cuda" or "rocm" or "xpu" => isLinux && RuntimeInformation.OSArchitecture == Architecture.X64,
+            _ => false
+        };
 
     /// <summary>
     /// Gets the path comparer used by this unix platform runtime instance to locate the associated file-system resource.

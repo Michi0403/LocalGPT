@@ -53,6 +53,8 @@ namespace LocalGPT.Services
             var compilerId = request.CompilerInstallationId != Guid.Empty ? request.CompilerInstallationId : workspace?.PreferredCompilerInstallationId ?? Guid.Empty;
             var compiler = await db.ProjectCompilerInstallations.SingleOrDefaultAsync(item => item.Id == compilerId && item.IsEnabled, cancellationToken).ConfigureAwait(false)
                 ?? throw new KeyNotFoundException("The selected or workspace-assigned compiler installation was not found or is disabled.");
+            if (compiler.Language.Equals("Python", StringComparison.OrdinalIgnoreCase) && !platform.IsCompatiblePythonBinary(compiler.ExecutablePath))
+                throw new InvalidOperationException("Select a native arm64 or universal Python installation for revision builds on Apple silicon.");
             if (!compiler.LastValidationSucceeded)
                 throw new InvalidOperationException("Validate the selected compiler installation successfully before using it for a revision build.");
 

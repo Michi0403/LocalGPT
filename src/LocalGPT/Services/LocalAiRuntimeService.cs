@@ -392,6 +392,9 @@ public sealed partial class LocalAiRuntimeService(
             if (string.IsNullOrWhiteSpace(candidate.PythonRuntimeLibrary) || !File.Exists(candidate.PythonRuntimeLibrary))
                 throw new InvalidOperationException("The selected Python installation has no resolved shared runtime library. Python.NET cannot bind it safely.");
 
+            if (!platform.IsCompatiblePythonBinary(candidate.ExecutablePath) || !platform.IsCompatiblePythonBinary(candidate.PythonRuntimeLibrary))
+                throw new InvalidOperationException("Choose a native arm64 or universal Python executable and matching shared library on Apple silicon.");
+
             var root = CloneConfiguration(options.CurrentValue);
             root.PythonCore ??= new PythonCoreOptions();
             root.PythonCore.PythonExecutable = Path.GetFullPath(candidate.ExecutablePath);
@@ -783,7 +786,7 @@ public sealed partial class LocalAiRuntimeService(
                 ?? throw new InvalidOperationException("The PythonCore package profile is missing the required 'whisper-runtime' profile.");
             await InstallPackagesAsync(supportProfile, cancellationToken, progress).ConfigureAwait(false);
             ReportInstallProgress(progress, "Checking PyTorch in the managed environment…");
-            var torchProbe = await RunProcessAsync(environmentPython, ["-c", "import torch; print(torch.__version__)"], environmentPath, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+            var torchProbe = await RunProcessAsync(environmentPython, ["-c", "import torch; print(torch.__version__)"], environmentPath, TimeSpan.FromMinutes(3), cancellationToken).ConfigureAwait(false);
             if (torchProbe.ExitCode != 0)
                 throw new InvalidOperationException("OpenAI Whisper requires PyTorch. Install the PyTorch backend appropriate for this machine from the Python capability profiles before installing Whisper.");
 
@@ -1516,6 +1519,8 @@ public sealed partial class LocalAiRuntimeService(
             var libraryName = root.GetProperty("ldlibrary").GetString() ?? string.Empty;
             var libraryDirectory = root.GetProperty("libdir").GetString() ?? string.Empty;
             var runtime = ResolvePythonRuntimeLibrary(home, version, libraryDirectory, libraryName);
+            if (!string.IsNullOrEmpty(runtime) && !platform.IsCompatiblePythonBinary(runtime))
+                return null;
             return new PythonRuntimeCandidate
             {
                 ExecutablePath = Path.GetFullPath(executable),
@@ -2072,7 +2077,10 @@ public sealed partial class LocalAiRuntimeService(
     {
         var environmentPath = ResolveEnvironmentPath(CurrentConfig());
         var executable = ResolveEnvironmentPython(environmentPath);
-        return RequireExistingFile(executable, "Managed environment Python executable. Create the environment in Install → Toolchains");
+        executable = RequireExistingFile(executable, "Managed environment Python executable. Create the environment in Install → Toolchains");
+        if (!platform.IsCompatiblePythonBinary(executable))
+            throw new InvalidOperationException("Recreate the managed Python environment with an arm64 or universal interpreter on Apple silicon.");
+        return executable;
     }
 
 
@@ -2135,7 +2143,8 @@ public sealed partial class LocalAiRuntimeService(
     {
             if (result.ExitCode == 0)
                 return;
-            var tail = string.Join(' ', (result.StdErr + " " + result.StdOut).Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).TakeLast(4));
+            var diagnosticOutput = string.IsNullOrWhiteSpace(result.StdErr) ? result.StdOut : result.StdErr;
+            var tail = string.Join(' ', diagnosticOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).TakeLast(4));
             if (tail.Length > 600) tail = tail[^600..];
             throw new InvalidOperationException($"{operation} failed with exit code {result.ExitCode}. {tail}".Trim());
     
@@ -2165,6 +2174,8 @@ public sealed partial class LocalAiRuntimeService(
     {
     try
     {
+            if (!platform.IsCompatiblePythonBinary(executable))
+                throw new InvalidOperationException("Select an arm64 or universal Python interpreter and recreate the managed environment on Apple silicon.");
             using var process = new Process
             {
                 StartInfo = new ProcessStartInfo

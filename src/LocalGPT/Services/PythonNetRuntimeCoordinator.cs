@@ -38,6 +38,7 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     /// Stores the web host environment dependency used by <see cref="PythonNetRuntimeCoordinator"/> to delegate that application responsibility to its owning collaborator.
     /// </summary>
     private readonly IWebHostEnvironment environment;
+    private readonly IPlatformRuntimeService platform;
     /// <summary>
     /// Stores the logger used by <see cref="PythonNetRuntimeCoordinator"/> to record operational diagnostics without coupling callers to logging details.
     /// </summary>
@@ -94,14 +95,17 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
     /// <param name="environment">Web host environment dependency used by the python net runtime workflow to provide the corresponding application capability.</param>
     /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the python net runtime workflow to provide the corresponding application capability.</param>
     /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
+    /// <param name="platform">Checks the native CPython architecture before loading it.</param>
     public PythonNetRuntimeCoordinator(
         IOptionsMonitor<LocalGptConfigurationRoot> options,
         IWebHostEnvironment environment,
+        IPlatformRuntimeService platform,
         ILocalGptRuntimePolicyDataService runtimePolicy,
         ILogger<PythonNetRuntimeCoordinator> logger)
     {
         this.options = options;
         this.environment = environment;
+        this.platform = platform;
         this.logger = logger;
         var parameters = runtimePolicy.GetJson<PythonNetRuntimeParameters>("PythonNetRuntimeParametersJson");
         var capacity = Math.Clamp(options.CurrentValue.PythonCore?.QueueCapacity ?? parameters.DefaultQueueCapacity, parameters.MinimumQueueCapacity, parameters.MaximumQueueCapacity);
@@ -336,6 +340,8 @@ public sealed class PythonNetRuntimeCoordinator : IPythonNetRuntimeCoordinator, 
             }
             if (string.IsNullOrWhiteSpace(config.PythonRuntime) || !File.Exists(config.PythonRuntime))
                 throw new InvalidOperationException("No valid CPython shared runtime library is configured.");
+            if (!platform.IsCompatiblePythonBinary(config.PythonRuntime))
+                throw new InvalidOperationException("Configure an arm64 or universal CPython shared library on Apple silicon.");
             if (string.IsNullOrWhiteSpace(config.VirtualEnvironmentPath) || !Directory.Exists(config.VirtualEnvironmentPath))
                 throw new InvalidOperationException("No LocalGPT-managed Python environment is configured.");
 

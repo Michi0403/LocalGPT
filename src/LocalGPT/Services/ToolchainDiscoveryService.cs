@@ -351,6 +351,8 @@ public sealed class ToolchainDiscoveryService(
         try
         {
             var fullPath = Path.GetFullPath(candidatePath);
+            if (profile.Key.Equals("python", StringComparison.OrdinalIgnoreCase) && !platform.IsCompatiblePythonBinary(fullPath))
+                return;
             if (!IsRunnableCandidatePath(fullPath))
                 return;
             if (!foundPaths.Add(fullPath))

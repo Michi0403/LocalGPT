@@ -241,7 +241,7 @@ public sealed class OneWireController(
     /// Invokes peer for the one wire API operation, delegating application logic to the controller's services and returning the resulting HTTP-facing value.
     /// </summary>
     /// <param name="peerId">Identifier of the peer to use for this operation.</param>
-    /// <param name="envelope">Envelope value supplied to the one wire operation and used when producing its result.</param>
+    /// <param name="request">The HTTP envelope as submitted, before assigning protocol defaults.</param>
     /// <param name="cancellationToken">Cancellation token that allows the caller to stop the asynchronous operation.</param>
     /// <returns>The HTTP-facing result produced for the caller.</returns>
     [HttpPost("peers/{peerId}/invoke")]
@@ -252,8 +252,22 @@ public sealed class OneWireController(
         "High",
         "Organic plugin action reviewer",
         requiredBeforeCompletion: true)]
-    public async Task<IActionResult> InvokePeer(string peerId, [FromBody] OneWireEnvelope envelope, CancellationToken cancellationToken)
+    public async Task<IActionResult> InvokePeer(string peerId, [FromBody] JsonElement request, CancellationToken cancellationToken)
     {
+        OneWireEnvelope? envelope;
+        try
+        {
+            // The approval filter fingerprints the submitted fields. Generate missing
+            // IDs and timestamps only after an exact retry has been authorized.
+            envelope = request.Deserialize<OneWireEnvelope>(codec.JsonOptions);
+        }
+        catch (JsonException exception)
+        {
+            logger.LogWarning("The 1-Wire invocation request could not be read as an envelope. Error at field {Field}.", exception.Path);
+            return BadRequest(new { error = "The 1-Wire invocation body must be an envelope object." });
+        }
+        if (envelope is null)
+            return BadRequest(new { error = "A 1-Wire invocation envelope is required." });
         if (peers.GetPeer(peerId)?.IsConnected != true)
             return Conflict(new { error = "The selected organic application is not linked by both frontends." });
         envelope.SourcePeerId = "localgpt";

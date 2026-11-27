@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services;
@@ -36,14 +35,7 @@ public sealed partial class LocalAiRuntimeService
             ["torch", "torchvision", "torchaudio"])
     ];
 
-    private bool IsAcceleratorPlatformSupported(AcceleratorProfile profile) => profile.Backend switch
-    {
-        "mps" => OperatingSystem.IsMacOSVersionAtLeast(14) && RuntimeInformation.ProcessArchitecture == Architecture.Arm64,
-        "xpu" => (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000) || OperatingSystem.IsLinux())
-            && RuntimeInformation.OSArchitecture == Architecture.X64,
-        _ => (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
-            && RuntimeInformation.OSArchitecture == Architecture.X64
-    };
+    private bool IsAcceleratorPlatformSupported(AcceleratorProfile profile) => platform.SupportsPyTorchBackend(profile.Backend);
 
     private LocalAiPackageProfile ToPackageProfile(AcceleratorProfile profile) => new()
     {
@@ -86,7 +78,7 @@ public sealed partial class LocalAiRuntimeService
             print((torch.ones(1, device='{probe.Item1}') + 1).item())
             """;
         ReportInstallProgress(progress, $"Checking {profile.Name} with a tensor operation…");
-        var result = await RunProcessAsync(executable, ["-c", script], environmentPath, TimeSpan.FromMinutes(2), cancellationToken, progress, profile.Name).ConfigureAwait(false);
+        var result = await RunProcessAsync(executable, ["-c", script], environmentPath, TimeSpan.FromMinutes(5), cancellationToken, progress, profile.Name).ConfigureAwait(false);
         EnsureProcessSuccess(result, $"{profile.Name} device check. Verify the GPU and driver prerequisites and run the runtime probe again");
     }
 }
