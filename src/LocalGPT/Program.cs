@@ -175,6 +175,7 @@ namespace LocalGPT
             System.Threading.Volatile.Write(ref runtimeOneWireDiscoveryPort, ResolveConfiguredPort(args, builder.Configuration, "--onewire-discovery-port", "LOCALGPT_ONEWIRE_DISCOVERY_PORT", $"{OneWireOptions.SectionName}:DiscoveryPort", DefaultOneWireDiscoveryPort, allowDynamic: false, logger));
             ConfigureLogging(builder, logger);
             logger.LogInformation("Configured logging.");
+            RegisterApplicationBoundaries(builder.Services);
             ConfigureOptionsAndServices(builder, logger);
             logger.LogInformation("Configured options and services.");
             ConfigureSignalR(builder.Services, logger);
@@ -209,6 +210,24 @@ namespace LocalGPT
             app.Lifetime.ApplicationStopped.Register(() => DeleteRuntimeEndpointFile(runtimeEndpointLogger));
 
             return app;
+        }
+
+        private static void RegisterApplicationBoundaries(IServiceCollection services)
+        {
+            services.AddSingleton<ISupervisedTaskRunner, SupervisedTaskRunner>();
+
+            // Keep the local interaction and approval capabilities on the same ambient context as ordinary readers.
+            services.AddSingleton<AmbientLocalGptContext>();
+            services.AddSingleton<IAmbientLocalGptContext>(provider => provider.GetRequiredService<AmbientLocalGptContext>());
+            services.AddSingleton<ILocalHumanInteractionContext>(provider => provider.GetRequiredService<AmbientLocalGptContext>());
+            services.AddSingleton<IHumanApprovalExecutionContext>(provider => provider.GetRequiredService<AmbientLocalGptContext>());
+            services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
+            services.AddSingleton<IDeferredDxAiInvocationService, DeferredDxAiInvocationService>();
+
+            services.AddSingleton<IDatabaseLoggerReadiness, DatabaseLoggerReadiness>();
+            services.AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>();
+            services.AddScoped<IChatMemoryMessageMapper, ChatMemoryMessageMapper>();
+            services.AddScoped<ThemeService>();
         }
 
         //private static void TraceStartup(string message, ILogger logger)

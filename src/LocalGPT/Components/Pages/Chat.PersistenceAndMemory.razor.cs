@@ -74,7 +74,7 @@ namespace LocalGPT.Components.Pages
                 {
                     if (!mergedMessages.Any(message =>
                         message.Role == pending.Role &&
-                        string.Equals(message.Content, pending.Content, StringComparison.Ordinal)))
+                        string.Equals(message.Text, pending.Text, StringComparison.Ordinal)))
                     {
                         mergedMessages.Add(pending);
                     }
@@ -398,13 +398,13 @@ namespace LocalGPT.Components.Pages
         var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
         var authoritative = ChatClientProvider.SelectedSession.Messages.FirstOrDefault(message =>
             message.Role == ChatMessageRole.Assistant
-            && CouncilText.ContainsText(message.Content, marker, StringComparison.Ordinal));
+            && CouncilText.ContainsText(message.Text, marker, StringComparison.Ordinal));
         if (authoritative is null)
             return;
 
         var capturedIndex = captured.FindIndex(message =>
             message.Role == ChatMessageRole.Assistant
-            && CouncilText.ContainsText(message.Content, marker, StringComparison.Ordinal));
+            && CouncilText.ContainsText(message.Text, marker, StringComparison.Ordinal));
         if (capturedIndex >= 0)
             captured[capturedIndex] = authoritative;
         else
@@ -414,7 +414,7 @@ namespace LocalGPT.Components.Pages
         {
             if (!captured.Any(message =>
                 message.Role == pending.Role
-                && string.Equals(message.Content, pending.Content, StringComparison.Ordinal)))
+                && string.Equals(message.Text, pending.Text, StringComparison.Ordinal)))
             {
                 captured.Add(pending);
             }
@@ -756,10 +756,10 @@ namespace LocalGPT.Components.Pages
         {
         FeedbackTargets = messages
             .Select((message, sortOrder) => new { message, sortOrder })
-            .Where(item => item.message.Role == ChatMessageRole.Assistant && !string.IsNullOrWhiteSpace(item.message.Content))
+            .Where(item => item.message.Role == ChatMessageRole.Assistant && !string.IsNullOrWhiteSpace(item.message.Text))
             .Select(item => new ChatFeedbackTarget(
                 item.sortOrder,
-                $"#{item.sortOrder + 1}: {CouncilText.BuildFeedbackPreview(item.message.Content, Logger)}"))
+                $"#{item.sortOrder + 1}: {CouncilText.BuildFeedbackPreview(item.message.Text, Logger)}"))
             .ToList();
 
         if (FeedbackTargets.Count == 0)

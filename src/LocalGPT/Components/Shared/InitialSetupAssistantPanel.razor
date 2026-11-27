@@ -713,7 +713,7 @@
         try
         {
             await SetBusyAsync(true, "hardware", T("Detecting local CPU, memory, and accelerator hardware…")).ConfigureAwait(false);
-            _ = await Setup.DetectHardwareAsync(hardwareEndpoint, userConfirmed: true).ConfigureAwait(false);
+            await Setup.DetectHardwareAsync(hardwareEndpoint, userConfirmed: true).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception exception) { Logger.LogError(exception, "Initial setup local hardware detection failed."); await SetStatusAsync(T("Hardware detection failed. Review LocalGPT logs.")).ConfigureAwait(false); }
@@ -774,7 +774,7 @@
         try
         {
             await SetBusyAsync(true, "hardware", T("Parsing the HWiNFO report and refreshing reviewed hardware…")).ConfigureAwait(false);
-            _ = await Setup.ImportHwInfoAsync(hardwareEndpoint, hwInfoText, userConfirmed: true).ConfigureAwait(false);
+            await Setup.ImportHwInfoAsync(hardwareEndpoint, hwInfoText, userConfirmed: true).ConfigureAwait(false);
             await RefreshAsync().ConfigureAwait(false);
         }
         catch (Exception exception) { Logger.LogError(exception, "Initial setup HWiNFO import failed; report text omitted."); await SetStatusAsync(T("HWiNFO import failed. Review the report and LocalGPT logs.")).ConfigureAwait(false); }

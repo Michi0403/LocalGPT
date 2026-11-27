@@ -45,7 +45,7 @@ namespace LocalGPT.Components.Pages
         /// Gets the local AI device options collection maintained or exposed by this install instance for downstream processing.
         /// </summary>
         /// <value>The local AI device options value exposed by <see cref="Install"/>.</value>
-        private IReadOnlyList<string> LocalAiDeviceOptions { get; } = ["auto", "cpu", "cuda", "cuda:0", "cuda:1", "cuda:2", "mps"];
+        private IReadOnlyList<string> LocalAiDeviceOptions { get; } = ["auto", "cpu", "cuda", "cuda:0", "cuda:1", "cuda:2", "mps", "xpu", "xpu:0", "xpu:1", "xpu:2"];
         /// <summary>
         /// Gets the python memory strategy options collection maintained or exposed by this install instance for downstream processing.
         /// </summary>

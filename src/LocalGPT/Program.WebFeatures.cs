@@ -113,7 +113,6 @@ namespace LocalGPT
                 builder.Services.AddScoped<ControllerRequestLoggingFilter>();
                 builder.Services.AddMvc(options =>
                     options.Filters.AddService<ControllerRequestLoggingFilter>());
-                builder.Services.AddScoped<ThemeService>();
                 builder.Services.AddDevExpressServerSideBlazorPdfViewer();
             }
             catch (Exception ex)

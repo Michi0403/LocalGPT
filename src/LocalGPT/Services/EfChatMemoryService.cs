@@ -149,7 +149,7 @@ namespace LocalGPT.Services
             try
             {
                 var completeMessages = messages
-                .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
+                .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Text))
                 .ToList();
 
                 if (completeMessages.Count == 0)
@@ -228,7 +228,7 @@ namespace LocalGPT.Services
                         SortOrder = sortOrder,
                         Role = role,
                         Content = persistedContent,
-                        Thinking = councilText.ExtractThinking(message.Content, logger),
+                        Thinking = councilText.ExtractThinking(message.Text, logger),
                         IsPositiveFeedback = feedback?.IsPositiveFeedback,
                         FeedbackComment = feedback?.FeedbackComment ?? string.Empty,
                         FeedbackUpdatedAtUtc = feedback?.FeedbackUpdatedAtUtc,

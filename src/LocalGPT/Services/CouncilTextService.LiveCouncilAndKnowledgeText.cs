@@ -508,7 +508,7 @@ namespace LocalGPT.Services
             {
                 return string.Join("|", messages
                .Where(message => !message.Typing)
-               .Select(message => $"{message.Role}:{message.Content.GetHashCode(StringComparison.Ordinal)}:{message.Content.Length}"));
+               .Select(message => $"{message.Role}:{message.Text.GetHashCode(StringComparison.Ordinal)}:{message.Text.Length}"));
             }
             catch (Exception ex)
             {

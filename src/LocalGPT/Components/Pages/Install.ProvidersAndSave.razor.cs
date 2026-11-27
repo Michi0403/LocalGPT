@@ -869,7 +869,7 @@ namespace LocalGPT.Components.Pages
         try
         {
             var (ok, msg) = await Probe.TestLocalOpenAICompatAsync(host, default).ConfigureAwait(false);
-            RecordHostTestResult(host.Endpoint, ok, msg);
+            await RecordHostTestResultAsync(host.Endpoint, ok, msg).ConfigureAwait(false);
             await Append((ok ? "OK" : "FAIL") + $" OpenAI-compatible {host.Endpoint}: " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, host.Endpoint, "Provider reachable");
             else Notifier.ShowWarning(toastName, msg, "Provider test failed");
@@ -891,7 +891,7 @@ namespace LocalGPT.Components.Pages
         try
         {
             var (ok, msg) = await Probe.TestOllamaAsync(host, default).ConfigureAwait(false);
-            RecordHostTestResult(host.Uri, ok, msg);
+            await RecordHostTestResultAsync(host.Uri, ok, msg).ConfigureAwait(false);
             await Append((ok ? "OK" : "FAIL") + $" Ollama {host.Uri}: " + msg).ConfigureAwait(false);
             if (ok) Notifier.ShowSuccess(toastName, host.Uri, "Provider reachable");
             else Notifier.ShowWarning(toastName, msg, "Provider test failed");
@@ -1164,7 +1164,8 @@ namespace LocalGPT.Components.Pages
     /// <summary>
     /// Performs go chat for <see cref="Install"/>, keeping the operation consistent with the state and invariants of the surrounding install workflow.
     /// </summary>
-    private void GoChat()
+    /// <returns>A task that completes after navigation or reporting a navigation failure.</returns>
+    private async Task GoChat()
     {
         try
         {
@@ -1174,7 +1175,7 @@ namespace LocalGPT.Components.Pages
         {
             Logger.LogError(ex, "Navigation to /Chat failed: {Message}", ex.Message);
             Notifier.ShowError(toastName, "The operation failed. See local application logs for technical details.", "Operation failed");
-            _ = Append("(Nav) " + ex.Message);
+            await Append("(Nav) " + ex.Message).ConfigureAwait(false);
         }
     }
 
@@ -1188,12 +1189,16 @@ namespace LocalGPT.Components.Pages
     /// <param name="endpoint">Endpoint text of the tested host row.</param>
     /// <param name="ok">Whether the host answered.</param>
     /// <param name="message">Provider message returned by the probe.</param>
-    private void RecordHostTestResult(string? endpoint, bool ok, string? message)
+    /// <returns>A task that completes after the result is stored and the page is updated.</returns>
+    private async Task RecordHostTestResultAsync(string? endpoint, bool ok, string? message)
     {
         try
         {
-            hostTestResults[endpoint?.Trim() ?? string.Empty] = (ok, message ?? string.Empty, DateTimeOffset.Now);
-            _ = InvokeAsync(StateHasChanged);
+            await InvokeAsync(() =>
+            {
+                hostTestResults[endpoint?.Trim() ?? string.Empty] = (ok, message ?? string.Empty, DateTimeOffset.Now);
+                StateHasChanged();
+            }).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

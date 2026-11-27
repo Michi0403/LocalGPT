@@ -526,6 +526,7 @@ public sealed partial class LocalAiRuntimeService(
     {
         return CurrentConfig().PackageProfiles
         .Where(item => !string.IsNullOrWhiteSpace(item.Key))
+        .Where(item => !acceleratorProfiles.Any(profile => profile.Key.Equals(item.Key.Trim(), StringComparison.OrdinalIgnoreCase)))
         .GroupBy(item => item.Key.Trim(), StringComparer.OrdinalIgnoreCase)
         .Select(group => group.Last())
         .Select(item => new LocalAiPackageProfile
@@ -535,7 +536,7 @@ public sealed partial class LocalAiRuntimeService(
             Description = item.Description,
             Packages = [.. item.Packages],
             IncludesTorch = item.IncludesTorch
-        }).ToList();
+        }).Concat(acceleratorProfiles.Where(IsAcceleratorPlatformSupported).Select(ToPackageProfile)).ToList();
     }
     catch (Exception __serviceMethodException)
     {
@@ -709,7 +710,8 @@ public sealed partial class LocalAiRuntimeService(
                     ["model_path"] = localPath,
                     ["kind"] = probeKind,
                     ["trust_remote_code"] = request.TrustRemoteCode,
-                    ["device"] = config.DefaultDevice
+                    ["device"] = config.DefaultDevice,
+                    ["memory_strategy"] = config.DefaultMemoryStrategy
                 }, TimeSpan.FromMinutes(30), cancellationToken).ConfigureAwait(false);
                 if (!loadProbe.Succeeded ||
                     !string.Equals(loadProbe.Metadata.GetValueOrDefault("model_loaded"), "true", StringComparison.OrdinalIgnoreCase))
@@ -1453,6 +1455,11 @@ public sealed partial class LocalAiRuntimeService(
     {
     try
     {
+            var environmentPath = ResolveEnvironmentPath(CurrentConfig());
+            var environmentPython = RequireExistingFile(ResolveEnvironmentPython(environmentPath), "Managed environment Python executable");
+            var accelerator = acceleratorProfiles.FirstOrDefault(item => item.Key.Equals(profile.Key, StringComparison.OrdinalIgnoreCase));
+            if (accelerator is not null)
+                await ValidateAcceleratorEnvironmentAsync(accelerator, environmentPython, environmentPath, cancellationToken).ConfigureAwait(false);
             if (python.IsInitialized)
             {
                 runtimePolicyRestartRequired = true;
@@ -1460,13 +1467,15 @@ public sealed partial class LocalAiRuntimeService(
             }
             if (profile.Packages.Count == 0)
                 throw new InvalidOperationException($"Python package profile '{profile.Key}' contains no packages.");
-            var environmentPath = ResolveEnvironmentPath(CurrentConfig());
-            var environmentPython = RequireExistingFile(ResolveEnvironmentPython(environmentPath), "Managed environment Python executable");
             var arguments = new List<string> { "-u", "-m", "pip", "install", "--disable-pip-version-check", "--progress-bar", "off" };
+            if (accelerator is not null)
+                arguments.AddRange(["--index-url", accelerator.IndexUrl, "--only-binary", ":all:"]);
             arguments.AddRange(profile.Packages.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()));
             ReportInstallProgress(progress, $"Resolving packages for {profile.DisplayName}…");
             var result = await RunProcessAsync(environmentPython, arguments, environmentPath, TimeSpan.FromMinutes(45), cancellationToken, progress, profile.DisplayName).ConfigureAwait(false);
             EnsureProcessSuccess(result, $"Python package profile '{profile.Key}' installation");
+            if (accelerator is not null)
+                await VerifyAcceleratorAsync(accelerator, environmentPython, environmentPath, cancellationToken, progress).ConfigureAwait(false);
             ReportInstallProgress(progress, $"Python package profile {profile.DisplayName} is ready.");
             logger.LogInformation("Installed Python package profile {ProfileKey}; package output and environment path were omitted from logs.", profile.Key);
     
@@ -1848,9 +1857,13 @@ public sealed partial class LocalAiRuntimeService(
         try
         {
             var normalized = (value ?? "auto").Trim().ToLowerInvariant();
-            return normalized is "auto" or "cpu" or "cuda" or "mps"
-                || (normalized.StartsWith("cuda:", StringComparison.Ordinal) && int.TryParse(normalized[5..], out var index) && index is >= 0 and < 32)
-                ? normalized : throw new ArgumentException("Device must be auto, cpu, cuda, cuda:N or mps.");
+            if (normalized is "auto" or "cpu" or "cuda" or "xpu" or "mps")
+                return normalized;
+            if (normalized.Split(':') is ["cuda" or "xpu", var indexText]
+                && int.TryParse(indexText, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var index)
+                && index is >= 0 and < 32)
+                return $"{normalized[..normalized.IndexOf(':')]}:{index}";
+            throw new ArgumentException("Device must be auto, cpu, cuda, cuda:N, xpu, xpu:N or mps.");
         }
         catch (Exception exception)
         {

@@ -446,20 +446,34 @@ public sealed partial class ProjectMaintenanceService : IProjectMaintenanceServi
                 foreach (var existing in defaults) existing.IsDefaultForLanguage = false;
             }
 
+            var compilerHome = NormalizeOptionalPath(request.CompilerHomePath);
+            var validationArguments = TrimOrFallback(request.ValidationArguments, 500, DefaultValidationArguments(language, executable));
+            var knowledgeProfileKey = Trim(request.KnowledgeProfileKey, 96);
+            var probeChanged = item.ExecutablePath != executable || item.CompilerHomePath != compilerHome ||
+                item.ValidationArguments != validationArguments || item.EnvironmentVariablesJson != environmentJson ||
+                item.KnowledgeProfileKey != knowledgeProfileKey;
             item.Name = RequireText(request.Name, nameof(request.Name), 200);
             item.Language = language;
             item.ExecutablePath = executable;
-            item.CompilerHomePath = NormalizeOptionalPath(request.CompilerHomePath);
+            item.CompilerHomePath = compilerHome;
             item.Version = Trim(request.Version, 160);
             item.Architecture = Trim(request.Architecture, 80);
             item.DiscoverySource = TrimOrFallback(request.DiscoverySource, 80, "Custom");
             item.ToolchainKind = Trim(request.ToolchainKind, 40);
             item.DetectedPlatform = Trim(request.DetectedPlatform, 40);
-            item.ValidationArguments = TrimOrFallback(request.ValidationArguments, 500, DefaultValidationArguments(language, executable));
+            item.ValidationArguments = validationArguments;
             item.EnvironmentVariablesJson = environmentJson;
-            item.KnowledgeProfileKey = Trim(request.KnowledgeProfileKey, 96);
+            item.KnowledgeProfileKey = knowledgeProfileKey;
             item.KnowledgeEntryId = request.KnowledgeEntryId;
-            item.VersionKnowledgeEntryId = request.VersionKnowledgeEntryId;
+            item.VersionKnowledgeEntryId = probeChanged && item.VersionKnowledgeEntryId == request.VersionKnowledgeEntryId
+                ? null
+                : request.VersionKnowledgeEntryId;
+            if (probeChanged)
+            {
+                item.LastValidatedAtUtc = null;
+                item.LastValidationSucceeded = false;
+                item.LastValidationMessage = string.Empty;
+            }
             item.IsEnabled = request.IsEnabled;
             item.IsDefaultForLanguage = request.IsDefaultForLanguage;
             item.UpdatedAtUtc = DateTime.UtcNow;

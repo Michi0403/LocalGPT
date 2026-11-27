@@ -388,8 +388,8 @@ namespace LocalGPT.Services
         {
             try
             {
-                var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Content
-                ?? messages.First().Content;
+                var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Text
+                ?? messages.First().Text;
                 var title = _catalog.WhitespacePattern.Replace(_text.StripThinking(firstUserMessage,logger), " ").Trim();
 
                 if (string.IsNullOrWhiteSpace(title))
@@ -417,7 +417,7 @@ namespace LocalGPT.Services
             try
             {
                 if (messages.Count == 0 ||
-               messages.Any(message => message.Role == ChatMessageRole.User && !string.IsNullOrWhiteSpace(message.Content)))
+               messages.Any(message => message.Role == ChatMessageRole.User && !string.IsNullOrWhiteSpace(message.Text)))
                 {
                     return messages;
                 }
@@ -478,7 +478,7 @@ namespace LocalGPT.Services
             {
                 foreach (var message in messages)
                 {
-                    var content = WebUtility.HtmlDecode(message.Content);
+                    var content = WebUtility.HtmlDecode(message.Text);
                     var promptSection = _text.TryFindCouncilPromptSection(content, logger);
                     if (!string.IsNullOrWhiteSpace(promptSection))
                     {
@@ -534,7 +534,7 @@ namespace LocalGPT.Services
                 return conversation.ProviderName.Contains("AI Council", StringComparison.OrdinalIgnoreCase) ||
                 conversation.Title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase) ||
                 conversation.Title.Contains("Council members:", StringComparison.OrdinalIgnoreCase) ||
-                messages.Any(message => message.Content.Contains("Council members:", StringComparison.OrdinalIgnoreCase));
+                messages.Any(message => message.Text.Contains("Council members:", StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception ex)
             {

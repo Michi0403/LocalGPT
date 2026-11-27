@@ -2,6 +2,7 @@ using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services;
 
+/// <summary>Defines the built-in Neural Training Council blueprint.</summary>
 public sealed partial class OrganicCouncilBlueprintSeedDataService
 {
     private OrganicCouncilTeamDefinition CreateNeuralTrainingTeam()

@@ -1,5 +1,6 @@
 namespace LocalGPT.Services;
 
+/// <summary>Resolves installed provider model revisions for NUTS benchmark evidence.</summary>
 public sealed partial class ProviderModelBenchmarkService
 {
     private async Task<Dictionary<string, string>> ReadBenchmarkRevisionsAsync(CancellationToken cancellationToken)

@@ -42,24 +42,31 @@ def _require_not_cancelled(cancel_path: str) -> None:
 
 def _auto_device(torch, requested: str) -> str:
     requested = (requested or "auto").strip().lower()
-    if requested not in ("", "auto"):
-        if requested.startswith("cuda:"):
-            index = int(requested[5:])
-            if index < 0 or not torch.cuda.is_available() or index >= torch.cuda.device_count():
-                raise ValueError("Requested CUDA/ROCm device is not available in this Python environment.")
+    backend_name, separator, index_text = requested.partition(":")
+    backends = {
+        "cuda": (getattr(torch, "cuda", None), "CUDA/ROCm"),
+        "xpu": (getattr(torch, "xpu", None), "Intel XPU"),
+        "mps": (getattr(getattr(torch, "backends", None), "mps", None), "Apple Metal"),
+    }
+    if requested in ("", "auto"):
+        return next((name for name, (backend, _) in backends.items()
+                     if backend is not None and backend.is_available()), "cpu")
+    if requested == "cpu":
         return requested
-    if bool(getattr(torch.cuda, "is_available", lambda: False)()):
-        return "cuda"
-    mps = getattr(getattr(torch, "backends", None), "mps", None)
-    if mps is not None and bool(getattr(mps, "is_available", lambda: False)()):
-        return "mps"
-    return "cpu"
+    if backend_name not in backends or (separator and backend_name == "mps"):
+        raise ValueError("Requested PyTorch device is unsupported.")
+    backend, label = backends[backend_name]
+    if backend is None or not backend.is_available():
+        raise ValueError(f"Requested {label} device is unavailable. Check the PyTorch profile and GPU driver in Local AI runtimes.")
+    if separator and (not index_text.isascii() or not index_text.isdecimal() or int(index_text) >= backend.device_count()):
+        raise ValueError(f"Requested {label} device index is unavailable in this Python environment.")
+    return requested if not separator else f"{backend_name}:{int(index_text)}"
 
 
 def _dtype_for(torch, device: str):
     if device.startswith("cuda"):
         return getattr(torch, "bfloat16", torch.float16)
-    if device == "mps":
+    if device == "mps" or device.partition(":")[0] == "xpu":
         return torch.float16
     return torch.float32
 
@@ -79,6 +86,12 @@ def _release_device_cache(torch=None) -> None:
     try:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+    except Exception:
+        pass
+    try:
+        xpu = getattr(torch, "xpu", None)
+        if xpu is not None and xpu.is_available():
+            xpu.empty_cache()
     except Exception:
         pass
     try:
@@ -123,11 +136,10 @@ def _get_or_load_pipeline(kind: str, model_path: str, trust_remote_code: bool, d
                 method(gpu_id=gpu_id)
     elif kind == "asr":
         from transformers import pipeline
-        pipeline_device = int(device.split(":", 1)[1]) if device.startswith("cuda:") else 0 if device == "cuda" else "mps" if device == "mps" else -1
         pipe = pipeline(
             "automatic-speech-recognition",
             model=model_path,
-            device=pipeline_device,
+            device=torch.device(device),
             torch_dtype=_dtype_for(torch, device),
             trust_remote_code=bool(trust_remote_code),
             local_files_only=True,
@@ -157,23 +169,21 @@ def _runtime_probe(parameters: dict, cancel_path: str) -> dict:
         pass
     try:
         import torch
-        result["torch_version"] = str(getattr(torch, "__version__", ""))
-        result["device"] = _auto_device(torch, str(parameters.get("device", "auto")))
-        if result["device"].startswith("cuda"):
-            hip_version = str(getattr(getattr(torch, "version", None), "hip", "") or "")
-            cuda_version = str(getattr(getattr(torch, "version", None), "cuda", "") or "")
-            result["backend"] = "rocm" if hip_version else "cuda"
-            result["backend_version"] = hip_version or cuda_version
-            try:
-                result["device_name"] = torch.cuda.get_device_name(int(result["device"].split(":", 1)[1]) if ":" in result["device"] else 0)
-            except Exception:
-                pass
-        elif result["device"] == "mps":
-            result["backend"] = "mps"
-        else:
-            result["backend"] = "cpu"
-    except Exception:
-        pass
+    except ModuleNotFoundError as error:
+        if error.name == "torch":
+            raise RuntimeError("PyTorch is missing. Install the matching PyTorch profile in Local AI runtimes.") from error
+        raise
+    result["torch_version"] = str(getattr(torch, "__version__", ""))
+    result["device"] = _auto_device(torch, str(parameters.get("device", "auto")))
+    backend, _, index = result["device"].partition(":")
+    result["backend"] = backend
+    if backend == "cuda":
+        version = getattr(torch, "version", None)
+        hip_version = str(getattr(version, "hip", "") or "")
+        result["backend"] = "rocm" if hip_version else "cuda"
+        result["backend_version"] = hip_version or str(getattr(version, "cuda", "") or "")
+    if backend in ("cuda", "xpu"):
+        result["device_name"] = getattr(torch, backend).get_device_name(int(index) if index else None)
     return {"status": "Completed", "metadata": {str(k): str(v) for k, v in result.items() if v is not None}}
 
 
@@ -194,7 +204,8 @@ def _model_load_probe(parameters: dict, cancel_path: str) -> dict:
     device = _auto_device(torch, str(parameters.get("device", "auto")))
     _require_not_cancelled(cancel_path)
     pipeline, _ = _get_or_load_pipeline(kind, str(model_path),
-        bool(parameters.get("trust_remote_code", False)), device, False)
+        bool(parameters.get("trust_remote_code", False)), device, False,
+        str(parameters.get("memory_strategy", "native")) if kind != "asr" else "native")
     _require_not_cancelled(cancel_path)
     del pipeline
     _release_device_cache(torch)
@@ -552,7 +563,7 @@ def _speech_recognize(parameters: dict, cancel_path: str) -> dict:
             raise ValueError("runtime_model_name is required for the OpenAI Whisper adapter.")
         # Upstream Whisper is reliable on CPU/CUDA. Until its MPS behavior is consistently
         # supported across releases, prefer CPU rather than failing a reviewed local job.
-        whisper_device = "cpu" if device == "mps" else device
+        whisper_device = "cpu" if device.partition(":")[0] in ("mps", "xpu") else device
         key = _cache_key("openai-whisper", model_path, False, whisper_device) + f"|{runtime_model_name}"
         model = _MODEL_CACHE.get(key) if cache_models else None
         if model is None:
@@ -562,7 +573,7 @@ def _speech_recognize(parameters: dict, cancel_path: str) -> dict:
             model = whisper.load_model(str(weights), device=whisper_device)
             if cache_models:
                 _MODEL_CACHE[key] = model
-        options = {"fp16": whisper_device == "cuda", "task": task}
+        options = {"fp16": whisper_device.partition(":")[0] == "cuda", "task": task}
         if language:
             options["language"] = language
         if initial_prompt:

@@ -5,6 +5,7 @@ using LocalGPT.BusinessObjects;
 
 namespace LocalGPT.Services;
 
+/// <summary>Prepares and verifies training datasets built from approved knowledge revisions.</summary>
 public sealed partial class ModelTrainingService
 {
     private sealed record DatasetReceipt(string Kind, string TrainSha256, string EvaluationSha256, string? KnowledgeRevisionsSha256);

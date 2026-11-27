@@ -179,7 +179,7 @@ public sealed class RotateRemoteControlWebhookTokenFunction(IRemoteControlConnec
         {
             var binding = json.Bind<RemoteControlKeyParameters>(request.Parameters);
             if (!binding.Succeeded) return json.InvalidParameters(binding.Error);
-            _ = await connectors.RotateWebhookTokenAsync(binding.Value.Key, cancellationToken).ConfigureAwait(false);
+            await connectors.RotateWebhookTokenAsync(binding.Value.Key, cancellationToken).ConfigureAwait(false);
             return json.Success(new { binding.Value.Key, Rotated = true, SecretReturned = false });
         }
         catch (OperationCanceledException exception) { logger.LogDebug(exception, "Rotating a Remote Control webhook token through DXFunction was cancelled."); throw; }

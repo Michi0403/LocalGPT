@@ -589,14 +589,14 @@ namespace LocalGPT.Services
                     .AppendLine("Latest saved messages from this council thread:");
 
                 foreach (var message in conversation.Messages
-                    .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
+                    .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Text))
                     .TakeLast(24))
                 {
                     builder
                         .Append("- ")
                         .Append(message.Role)
                         .Append(": ")
-                        .AppendLine(councilText.MultiModelCouncilServiceTrimCouncilText(councilText.MultiModelCouncilServiceStripThinking(message.Content, logger), 700, logger));
+                        .AppendLine(councilText.MultiModelCouncilServiceTrimCouncilText(councilText.MultiModelCouncilServiceStripThinking(message.Text, logger), 700, logger));
                 }
 
                 builder.AppendLine("Every council member must treat this as selected continuation context. Preserve user decisions from prior polls unless the user explicitly changes them.");
@@ -652,7 +652,7 @@ namespace LocalGPT.Services
                 var messages = continuedConversation is null
     ? new List<BlazorChatMessage>()
     : continuedConversation.Messages
-        .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Content))
+        .Where(message => !message.Typing && !string.IsNullOrWhiteSpace(message.Text))
         .ToList();
 
                 messages.Add(new BlazorChatMessage(

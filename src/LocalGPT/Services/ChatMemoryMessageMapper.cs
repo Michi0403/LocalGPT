@@ -28,8 +28,8 @@ public sealed class ChatMemoryMessageMapper(
     {
         try
         {
-            var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Content
-                ?? messages.FirstOrDefault()?.Content
+            var firstUserMessage = messages.FirstOrDefault(message => message.Role == ChatMessageRole.User)?.Text
+                ?? messages.FirstOrDefault()?.Text
                 ?? string.Empty;
             var title = catalog.WhitespacePattern
                 .Replace(text.StripThinking(StripAttachmentPresentation(firstUserMessage), logger), " ")
@@ -60,7 +60,7 @@ public sealed class ChatMemoryMessageMapper(
         try
         {
             if (messages.Count == 0 ||
-                messages.Any(message => message.Role == ChatMessageRole.User && !string.IsNullOrWhiteSpace(message.Content)))
+                messages.Any(message => message.Role == ChatMessageRole.User && !string.IsNullOrWhiteSpace(message.Text)))
             {
                 return messages;
             }
@@ -122,7 +122,7 @@ public sealed class ChatMemoryMessageMapper(
         try
         {
             ArgumentNullException.ThrowIfNull(message);
-            var content = message.Content ?? string.Empty;
+            var content = message.Text ?? string.Empty;
             if (content.Contains("data-localgpt-restored-attachments", StringComparison.OrdinalIgnoreCase))
                 return content;
 
@@ -131,7 +131,7 @@ public sealed class ChatMemoryMessageMapper(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Could not preserve DXAiChat attachment names while saving chat memory; message content was saved without attachment presentation.");
-            return message.Content ?? string.Empty;
+            return message.Text ?? string.Empty;
         }
     }
 
@@ -239,7 +239,7 @@ public sealed class ChatMemoryMessageMapper(
     {
             foreach (var message in messages)
             {
-                var content = WebUtility.HtmlDecode(message.Content);
+                var content = WebUtility.HtmlDecode(message.Text);
                 var promptSection = text.TryFindCouncilPromptSection(content, logger);
                 if (!string.IsNullOrWhiteSpace(promptSection))
                 {
@@ -281,7 +281,7 @@ public sealed class ChatMemoryMessageMapper(
             return conversation.ProviderName.Contains("AI Council", StringComparison.OrdinalIgnoreCase) ||
                 conversation.Title.Contains("AI Council request", StringComparison.OrdinalIgnoreCase) ||
                 conversation.Title.Contains("Council members:", StringComparison.OrdinalIgnoreCase) ||
-                messages.Any(message => message.Content.Contains("Council members:", StringComparison.OrdinalIgnoreCase));
+                messages.Any(message => message.Text.Contains("Council members:", StringComparison.OrdinalIgnoreCase));
     
     }
     catch (Exception __serviceMethodException)

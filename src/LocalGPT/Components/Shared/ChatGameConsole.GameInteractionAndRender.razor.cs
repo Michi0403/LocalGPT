@@ -508,11 +508,13 @@ public partial class ChatGameConsole
         {
         if (disposed)
             return;
-        _ = InvokeAsync(async () =>
+        TaskRunner.Run(nameof(ChatGameConsole), nameof(OnHumanCollaborationChanged), _ => InvokeAsync(async () =>
         {
+            if (disposed)
+                return;
             await RefreshHotSeatRequestAsync().ConfigureAwait(true);
             StateHasChanged();
-        });
+        }), consoleRenderToken);
     
         }
         catch (Exception __componentMethodException)
@@ -534,7 +536,7 @@ public partial class ChatGameConsole
             return;
         if (snapshot is not null && snapshot.Id != sessionId && CouncilRunId is null && ConversationId is null)
             return;
-        _ = InvokeAsync(async () =>
+        TaskRunner.Run(nameof(ChatGameConsole), nameof(OnGameChanged), _ => InvokeAsync(async () =>
         {
             if (disposed)
                 return;
@@ -553,7 +555,7 @@ public partial class ChatGameConsole
             if (!hadSnapshot && !operatorMode)
                 conversationMode = false;
             StateHasChanged();
-        });
+        }), consoleRenderToken);
     
         }
         catch (Exception __componentMethodException)

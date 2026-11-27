@@ -11,9 +11,11 @@ namespace LocalGPT.Services;
 /// <param name="logger">Logger used to record diagnostics produced while the operation runs.</param>
 /// <param name="runtimePolicy">Local gpt runtime policy data service dependency used by the council live session workflow to provide the corresponding application capability.</param>
 /// <param name="gameSessions">Council game session service used to stop game runs owned by a completed or canceled Council run.</param>
+/// <param name="taskRunner">Runs coalesced change notifications outside their caller.</param>
 public sealed class CouncilLiveSessionService(
     ILocalGptRuntimePolicyDataService runtimePolicy,
     ICouncilGameSessionService gameSessions,
+    ISupervisedTaskRunner taskRunner,
     ILogger<CouncilLiveSessionService> logger) : ICouncilLiveSessionService
 {
     /// <summary>
@@ -967,11 +969,11 @@ public sealed class CouncilLiveSessionService(
         if (Interlocked.Exchange(ref state.NotificationScheduled, 1) != 0)
             return;
 
-        _ = Task.Run(async () =>
+        taskRunner.Run(nameof(CouncilLiveSessionService), nameof(ScheduleChanged), async cancellationToken =>
         {
             try
             {
-                await Task.Delay(350).ConfigureAwait(false);
+                await Task.Delay(350, cancellationToken).ConfigureAwait(false);
                 Interlocked.Exchange(ref state.NotificationScheduled, 0);
                 var listeners = Changed?.GetInvocationList().Cast<Action<Guid>>().ToArray() ?? [];
                 foreach (var listener in listeners)

@@ -347,7 +347,7 @@ public sealed class ProviderRuntimeManagementService(
             ArgumentNullException.ThrowIfNull(options);
             ValidatePort(options.Port);
             var bind = NormalizeBindAddress(options.BindAddress);
-            _ = await ExecuteLmStudioAsync("Stop LM Studio server", ["server", "stop"], isReadOnly: false, userConfirmed: true, cancellationToken).ConfigureAwait(false);
+            await ExecuteLmStudioAsync("Stop LM Studio server", ["server", "stop"], isReadOnly: false, userConfirmed: true, cancellationToken).ConfigureAwait(false);
             var args = new List<string> { "server", "start", "--bind", bind, "--port", options.Port.ToString(System.Globalization.CultureInfo.InvariantCulture) };
             if (options.EnableCors)
                 args.Add("--cors");

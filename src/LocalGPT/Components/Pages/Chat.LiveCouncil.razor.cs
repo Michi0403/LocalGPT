@@ -178,8 +178,8 @@ namespace LocalGPT.Components.Pages
             // Build the UI payload off the renderer: completing a Council message can create a multi-megabyte string.
             var sourceMessages = saved?.Messages.ToList() ?? BuildCouncilSpoolChatConversation(receipt, marker);
             var restoredMessages = MaterializeCouncilMessages(sourceMessages, receipt);
-            var originalCouncilCharacters = sourceMessages.Where(message => message.Role == ChatMessageRole.Assistant).Sum(message => message.Content?.Length ?? 0);
-            var restoredCouncilCharacters = restoredMessages.Where(message => message.Role == ChatMessageRole.Assistant).Sum(message => message.Content?.Length ?? 0);
+            var originalCouncilCharacters = sourceMessages.Where(message => message.Role == ChatMessageRole.Assistant).Sum(message => message.Text?.Length ?? 0);
+            var restoredCouncilCharacters = restoredMessages.Where(message => message.Role == ChatMessageRole.Assistant).Sum(message => message.Text?.Length ?? 0);
             var applied = false;
             await InvokeAsync(() =>
             {
@@ -313,7 +313,7 @@ namespace LocalGPT.Components.Pages
     /// <summary>Only an assistant message containing the exact run marker can identify a saved Council chat.</summary>
     private bool HasCouncilRunMarker(ChatMemoryConversationSnapshot conversation, string marker) =>
         conversation.Messages.Any(message => message.Role == ChatMessageRole.Assistant &&
-            CouncilText.ContainsText(message.Content, marker, StringComparison.Ordinal));
+            CouncilText.ContainsText(message.Text, marker, StringComparison.Ordinal));
 
     /// <summary>
     /// Rebuilds the visible conversation of a recorded Council when no saved chat exists: the original request as the user message and
@@ -360,7 +360,7 @@ namespace LocalGPT.Components.Pages
                 if (message is null)
                     continue;
                 if (message.Role != ChatMessageRole.Assistant
-                    || !CouncilText.TryExtractMarkedGuid(message.Content, LiveCouncilMessageMarkerPrefix, out var runId)
+                    || !CouncilText.TryExtractMarkedGuid(message.Text, LiveCouncilMessageMarkerPrefix, out var runId)
                     || CouncilLiveSessions.GetSummary(runId) is { IsRunning: true })
                 {
                     result.Add(message);
@@ -373,8 +373,8 @@ namespace LocalGPT.Components.Pages
                     receipts = [known];
                 var spoolTranscript = CouncilText.BuildCouncilChatTranscriptFromSpool(receipts, marker);
                 var liveTranscript = CouncilLiveSessions.GetTranscript(runId);
-                var content = CouncilText.SelectMostCompleteCouncilMessage(message.Content, marker, liveTranscript, spoolTranscript);
-                if (string.Equals(content, message.Content, StringComparison.Ordinal))
+                var content = CouncilText.SelectMostCompleteCouncilMessage(message.Text, marker, liveTranscript, spoolTranscript);
+                if (string.Equals(content, message.Text, StringComparison.Ordinal))
                 {
                     result.Add(message);
                     continue;
@@ -1056,7 +1056,7 @@ namespace LocalGPT.Components.Pages
             var marker = $"{LiveCouncilMessageMarkerPrefix}{runId:N} -->";
             bool ContainsRunMarker(IEnumerable<BlazorChatMessage> messages) => messages.Any(message =>
                 message.Role == ChatMessageRole.Assistant &&
-                CouncilText.ContainsText(message.Content, marker, StringComparison.Ordinal));
+                CouncilText.ContainsText(message.Text, marker, StringComparison.Ordinal));
 
             ChatMemoryConversationSnapshot? restoredConversation = null;
             var needsSavedConversation = firstAttachmentToRun && ActiveConversationId is null;
@@ -1124,7 +1124,7 @@ namespace LocalGPT.Components.Pages
                         {
                             if (!restoredMessages.TakeLast(count).Zip(visibleMessages.Take(count))
                                 .All(pair => pair.First.Role == pair.Second.Role
-                                    && string.Equals(pair.First.Content, pair.Second.Content, StringComparison.Ordinal)))
+                                    && string.Equals(pair.First.Text, pair.Second.Text, StringComparison.Ordinal)))
                                 continue;
                             overlap = count;
                             break;
@@ -1173,7 +1173,7 @@ namespace LocalGPT.Components.Pages
                 var markerMessageIndices = councilSession.Messages
                     .Select((message, index) => new { message, index })
                     .Where(item => item.message.Role == ChatMessageRole.Assistant
-                        && CouncilText.ContainsText(item.message.Content, marker, StringComparison.Ordinal))
+                        && CouncilText.ContainsText(item.message.Text, marker, StringComparison.Ordinal))
                     .Select(item => item.index)
                     .ToList();
                 var messageIndex = markerMessageIndices.FirstOrDefault(-1);
@@ -1182,7 +1182,7 @@ namespace LocalGPT.Components.Pages
 
                 var initiatingMessageAlreadyPresent = messageIndex > 0
                     && councilSession.Messages[messageIndex - 1].Role == ChatMessageRole.User
-                    && string.Equals(councilSession.Messages[messageIndex - 1].Content, snapshot.UserMessage, StringComparison.Ordinal);
+                    && string.Equals(councilSession.Messages[messageIndex - 1].Text, snapshot.UserMessage, StringComparison.Ordinal);
                 if (!string.IsNullOrWhiteSpace(snapshot.UserMessage) && !initiatingMessageAlreadyPresent)
                 {
                     var userMessage = new BlazorChatMessage(ChatRole.User, snapshot.UserMessage, new List<AIChatUploadFileInfo>());
@@ -1211,7 +1211,7 @@ namespace LocalGPT.Components.Pages
                     var existingIndex = councilSession.Messages.FindIndex(
                         insertionIndex,
                         message => message.Role == ChatMessageRole.User
-                            && string.Equals(message.Content, additionalUserMessage, StringComparison.Ordinal));
+                            && string.Equals(message.Text, additionalUserMessage, StringComparison.Ordinal));
                     if (existingIndex >= 0)
                     {
                         insertionIndex = existingIndex + 1;

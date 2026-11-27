@@ -1610,7 +1610,7 @@
                             <small>@LocalAiRuntime.FormatPackageList(profile.Packages)</small>
                             @if (profile.IncludesTorch)
                             {
-                                <p class="local-ai-warning">This profile changes the PyTorch installation. Use it only when the default PyPI backend is the one you actually want.</p>
+                                <p class="local-ai-warning">This profile changes the PyTorch installation in the managed environment. Select the profile that matches this machine and its GPU driver.</p>
                             }
                             <DxButton Text="Install profile" Enabled="@(!LocalAiBusy && LocalAiStatus?.VirtualEnvironmentExists == true)" Click="@(() => InstallLocalAiPackageProfileAsync(profile.Key))" />
                             @LocalAiProgress($"package:{profile.Key}")
@@ -1808,6 +1808,7 @@
 </div>
 
 @code {
+    /// <summary>Shows setup status and progress beside the matching Local AI operation.</summary>
     private RenderFragment LocalAiProgress(string? operation) => @<div>
         @if (LocalAiOperation == operation && !string.IsNullOrWhiteSpace(LocalAiStatusText))
         {

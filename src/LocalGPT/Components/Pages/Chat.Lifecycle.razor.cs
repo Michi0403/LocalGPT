@@ -282,7 +282,7 @@ namespace LocalGPT.Components.Pages
                 StringComparison.OrdinalIgnoreCase);
             var linkedLiveCouncil = selectedSessionIsCouncil
                 ? initialMessages
-                    .Select(message => ResolveLiveCouncilMessage(message.Content))
+                    .Select(message => ResolveLiveCouncilMessage(message.Text))
                     .LastOrDefault(session => session?.IsRunning == true)
                 : null;
             if (linkedLiveCouncil is not null)

@@ -789,7 +789,7 @@
                 <MessageContentTemplate Context="messageContext">
                     <LocalGptFormLayoutSurface OwnerType="@typeof(Chat)" SectionName="message-content" CanHide="false" CssClass="chat-message-layout-surface">
                     @{
-                        var liveCouncilMessage = ResolveLiveCouncilMessage(messageContext.Content);
+                        var liveCouncilMessage = ResolveLiveCouncilMessage(messageContext.Text);
                     }
                     <div class="demo-chat-content" data-localgpt-details-host data-localgpt-copyable="true">
                         @if (liveCouncilMessage is not null)
@@ -801,8 +801,8 @@
                         }
                         else
                         {
-                            @(new MarkupString(RenderChatMessageHtml(messageContext.Content)))
-                            <ChatArtifactPreview Content="@messageContext.Content" />
+                            @(new MarkupString(RenderChatMessageHtml(messageContext.Text)))
+                            <ChatArtifactPreview Content="@messageContext.Text" />
                         }
                         @if (liveCouncilMessage is not null)
                         {

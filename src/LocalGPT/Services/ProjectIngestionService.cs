@@ -264,7 +264,7 @@ public sealed class ProjectIngestionService(
                 // for cloning into code-generation working copies.
                 var synchronizedProjects = await sync.SynchronizeAsync(workspaceName, cancellationToken, sourceApprovedByUser: true).ConfigureAwait(false);
                 var repositoryLearning = scope.ServiceProvider.GetRequiredService<IProjectRepositoryLearningService>();
-                _ = await repositoryLearning.StageCandidatesAsync(synchronizedProjects, cancellationToken).ConfigureAwait(false);
+                await repositoryLearning.StageCandidatesAsync(synchronizedProjects, cancellationToken).ConfigureAwait(false);
                 return record;
             }
             finally { Gate.Release(); }

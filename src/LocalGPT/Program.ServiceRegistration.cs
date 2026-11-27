@@ -87,7 +87,6 @@ namespace LocalGPT
                 builder.Services.AddSingleton<SqliteUtilityService>();
                 builder.Services.AddSingleton<CouncilKnowledgeContentService>();
                 builder.Services.AddScoped<DevExpressChatService>();
-                builder.Services.AddScoped<IChatMemoryMessageMapper, ChatMemoryMessageMapper>();
                 builder.Services.AddSingleton<AiDiscoveryService>();
                 builder.Services.AddSingleton<SqliteGridPresentationService>();
                 builder.Services.AddSingleton<NavigationUrlService>();
@@ -96,11 +95,6 @@ namespace LocalGPT
                     services.GetRequiredService<ComponentActivityService>());
                 builder.Services.AddSingleton<IServiceActivityService>(services =>
                     services.GetRequiredService<ComponentActivityService>());
-                builder.Services.AddSingleton<ISupervisedTaskRunner, SupervisedTaskRunner>();
-                builder.Services.AddSingleton<AmbientLocalGptContext>();
-                builder.Services.AddSingleton<IAmbientLocalGptContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
-                builder.Services.AddSingleton<ILocalHumanInteractionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
-                builder.Services.AddSingleton<IHumanApprovalExecutionContext>(services => services.GetRequiredService<AmbientLocalGptContext>());
                 builder.Services.AddSingleton<IJsonTextService, JsonTextService>();
                 builder.Services.AddSingleton<IConfigurationWriter, ConfigurationWriter>();
                 builder.Services.AddSingleton<IAiProviderConfigurationRegistryService, AiProviderConfigurationRegistryService>();
@@ -183,6 +177,7 @@ namespace LocalGPT
                 builder.Services.AddScoped<IOneWireCouncilHostEnrollmentService, OneWireCouncilHostEnrollmentService>();
                 builder.Services.AddSingleton<IAsciiSemanticActionService, AsciiSemanticActionService>();
                 builder.Services.AddSingleton<IKnowledgeRegexLinkService, KnowledgeRegexLinkService>();
+                // The singleton vision/OCR service consumes this; prompt operations obtain their own DbContext.
                 builder.Services.AddSingleton<IPromptConfigService, PromptConfigService>();
                 builder.Services.AddScoped<IChatAsciiExperienceState, ChatAsciiExperienceState>();
                 builder.Services.AddScoped<IVariableStoreService, VariableStoreService>();
@@ -229,7 +224,6 @@ namespace LocalGPT
                         60));
 
                 builder.Services.AddSingleton(databaseOptions);
-                builder.Services.AddSingleton<IDatabaseLoggerReadiness, DatabaseLoggerReadiness>();
                 builder.Services.AddSingleton<IDatabaseFileHealthService, DatabaseFileHealthService>();
                 builder.Services.AddDbContextFactory<LocalGptMemoryDbContext>(options =>
                     options.UseSqlite($"Data Source={databaseOptions.DatabasePath}"));
@@ -237,7 +231,6 @@ namespace LocalGPT
                 builder.Services.AddSingleton<ISystemVariableDefinitionService, SystemVariableDefinitionService>();
                 builder.Services.AddSingleton<IInitialDataFeedService, InitialDataFeedService>();
                 builder.Services.AddSingleton<IInitialDataCatalog, InitialDataCatalog>();
-                builder.Services.AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>();
                 builder.Services.AddSingleton<IDatabaseInitializationService, DatabaseInitializationService>();
                 builder.Services.AddHostedService<DatabaseInitializationHostedService>();
                 builder.Services.AddSingleton<IDxAiFunctionJsonService, DxAiFunctionJsonService>();
@@ -258,7 +251,6 @@ namespace LocalGPT
                 builder.Services.AddSingleton<IChatProtocolResolver, ChatProtocolResolver>();
 
                 builder.Services.AddSingleton<IOrganicCouncilBlueprintSeedDataService, OrganicCouncilBlueprintSeedDataService>();
-                builder.Services.AddSingleton<IHumanCollaborationService, HumanCollaborationService>();
                 builder.Services.AddSingleton<IAiHelpEscalatorService, AiHelpEscalatorService>();
                 builder.Services.AddScoped<IAiHelpCuratorService, AiHelpCuratorService>();
                 builder.Services.AddSingleton<ICouncilXRoundService, CouncilXRoundService>();
@@ -270,7 +262,6 @@ namespace LocalGPT
                 builder.Services.AddHostedService(provider => provider.GetRequiredService<SessionSandboxExecutionService>());
                 ConfigureGameEngine(builder.Services, logger);
                 builder.Services.AddSingleton<CouncilGameDxParameterReader>();
-                builder.Services.AddSingleton<IDeferredDxAiInvocationService, DeferredDxAiInvocationService>();
                 builder.Services.AddScoped<IChatMemoryService, EfChatMemoryService>();
                 builder.Services.AddScoped<IApplicationLogReaderService, ApplicationLogReaderService>();
                 builder.Services.AddScoped<ICouncilKnowledgeService, CouncilKnowledgeService>();
@@ -457,8 +448,8 @@ namespace LocalGPT
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, $"Error in ConfigureOptionsAndServices");
-                //TryAppendStartupTrace(ex.ToString(), logger);
+                logger.LogError(ex, "LocalGPT service registration failed during startup.");
+                throw;
             }
         }
 

@@ -61,8 +61,6 @@ foreach ($file in $maintainedFiles) {
 $programPath = Join-Path $sourceRoot 'Program.cs'
 $program = Get-Content -LiteralPath $programPath -Raw
 foreach ($token in @(
-    'AddSingleton<ComponentActivityService>()',
-    'AddSingleton<IServiceActivityService>',
     'AddSingleton<ISupervisedTaskRunner, SupervisedTaskRunner>()',
     'AddSingleton<IDatabaseMigrationCompatibilityService, DatabaseMigrationCompatibilityService>()',
     'AddScoped<ThemeService>()')) {
@@ -124,6 +122,14 @@ if ($diagnosticsRegistrationText.IndexOf('registrations were preserved unchanged
 $registrationPath = Join-Path $sourceRoot 'Program.ServiceRegistration.cs'
 $registrationText = Get-Content -LiteralPath $registrationPath -Raw
 
+foreach ($token in @(
+    'AddSingleton<ComponentActivityService>()',
+    'AddSingleton<IServiceActivityService>')) {
+    if ($registrationText.IndexOf($token, [StringComparison]::Ordinal) -lt 0) {
+        $errors.Add("Program.ServiceRegistration.cs must retain DI registration '$token'.")
+    }
+}
+
 if ($registrationText.IndexOf('AddTransient<IDxAiFunctionRegistry>(provider =>', [StringComparison]::Ordinal) -ge 0 -or
     $registrationText.IndexOf('AddScoped<IDxAiFunctionRegistry>(provider =>', [StringComparison]::Ordinal) -ge 0) {
     $errors.Add("src/LocalGPT/Program.ServiceRegistration.cs(1,1): error DI0013: IDxAiFunctionRegistry must not be exposed through a re-entrant factory alias. Runtime evidence showed the scoped alias throws duplicate ServiceCacheKey errors and the transient alias can stall Chat construction while eagerly materializing the handler graph. Use the normal scoped interface-to-implementation registration plus the scoped lazy handler resolver.")
@@ -147,15 +153,21 @@ if ($setThemeCount -ne $awaitedSetThemeCount) {
 
 $compatibilityPath = Join-Path $sourceRoot 'Services/Persistence/DatabaseMigrationCompatibilityService.cs'
 $compatibility = Get-Content -LiteralPath $compatibilityPath -Raw
+if ($compatibility -cnotmatch '\bpublic\s+sealed\s+(?:partial\s+)?class\s+DatabaseMigrationCompatibilityService\b') {
+    $errors.Add('DatabaseMigrationCompatibilityService must remain a public sealed class.')
+}
 foreach ($token in @(
-    'public sealed class DatabaseMigrationCompatibilityService',
-    'IServiceActivityService serviceActivity',
-    'signature.Requirements.Length')) {
+    'ILogger<DatabaseMigrationCompatibilityService> logger',
+    'logger.LogInformation(',
+    'logger.LogError(')) {
     if (-not ($compatibility.IndexOf($token, [StringComparison]::Ordinal) -ge 0)) {
         $errors.Add("Database migration compatibility service must retain '$token'.")
     }
 }
-if ($compatibility -match 'signature\.Requirements\.Count\s*(\r?\n|\?|:)') {
+$schemaOperationsPath = Join-Path $sourceRoot 'Services/Persistence/DatabaseMigrationCompatibilityService.SchemaOperations.cs'
+$schemaOperations = Get-Content -LiteralPath $schemaOperationsPath -Raw
+if ($schemaOperations.IndexOf('signature.Requirements.Length', [StringComparison]::Ordinal) -lt 0 -or
+    ($compatibility + "`n" + $schemaOperations) -match 'signature\.Requirements\.Count\s*(\r?\n|\?|:)') {
     $errors.Add('Migration signature cardinality must not regress to the Enumerable.Count method group.')
 }
 

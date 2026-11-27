@@ -136,11 +136,11 @@ public sealed class AsciiChatTextService
             var builder = new List<string>();
             foreach (var message in messages)
             {
-                if (message is null || string.IsNullOrWhiteSpace(message.Content))
+                if (message is null || string.IsNullOrWhiteSpace(message.Text))
                     continue;
 
                 var nickname = ResolveRoleNickname(message.Role, assistantNickname);
-                var block = BuildMessageBlock(message.Content, nickname);
+                var block = BuildMessageBlock(message.Text, nickname);
                 if (string.IsNullOrWhiteSpace(block))
                     continue;
 
@@ -250,7 +250,7 @@ public sealed class AsciiChatTextService
 
             for (var index = messages.Count - 1; index >= 0; index--)
             {
-                var content = messages[index]?.Content;
+                var content = messages[index]?.Text;
                 if (string.IsNullOrWhiteSpace(content))
                     continue;
 
@@ -692,7 +692,7 @@ public sealed class AsciiChatTextService
     {
         try
         {
-            return string.Join(Environment.NewLine + Environment.NewLine, messages.Select(message => message.Content ?? string.Empty));
+            return string.Join(Environment.NewLine + Environment.NewLine, messages.Select(message => message.Text ?? string.Empty));
         }
         catch (Exception exception)
         {
