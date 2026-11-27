@@ -602,7 +602,6 @@ Runtime classes: {{RuntimeClasses}}
                     CanUseOrganicFunctions = true,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
                     AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.runtime-class.resolve", "localgpt.runtime-class.get", "localgpt.game.session.start", "localgpt.game.session.get", "localgpt.game.display.get"],
-                    AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -623,7 +622,6 @@ Runtime classes: {{RuntimeClasses}}
                     CanUseOrganicFunctions = true,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
                     AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get"],
-                    AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -644,7 +642,6 @@ Runtime classes: {{RuntimeClasses}}
                     CanUseOrganicFunctions = true,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
                     AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
-                    AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
                     ProducesAsciiFrame = false,
                     WorldStepScale = 1,
@@ -791,7 +788,6 @@ Runtime classes: {{RuntimeClasses}}
                     CanUseOrganicFunctions = true,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
                     AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.start", "localgpt.game.session.get"],
-                    AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -813,7 +809,6 @@ Runtime classes: {{RuntimeClasses}}
                     IncludePriorTranscript = false,
                     CanUseOrganicFunctions = false,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
-                    AssignedModelName = "qwen3.5:2b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -833,7 +828,6 @@ Runtime classes: {{RuntimeClasses}}
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = false,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
-                    AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -853,7 +847,6 @@ Runtime classes: {{RuntimeClasses}}
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = false,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
-                    AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -873,7 +866,6 @@ Runtime classes: {{RuntimeClasses}}
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = false,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
-                    AssignedModelName = "qwen3.5:0.8b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -894,7 +886,6 @@ Runtime classes: {{RuntimeClasses}}
                     IncludePriorTranscript = true,
                     CanUseOrganicFunctions = false,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.Disabled,
-                    AssignedModelName = "qwen3.5:4b",
                     UseBuiltInBehavior = false
                 },
                 new()
@@ -919,7 +910,6 @@ Runtime classes: {{RuntimeClasses}}
                     CanUseOrganicFunctions = true,
                     AutomaticFunctionPolicyMode = CouncilAutomaticFunctionPolicyMode.ExactAllowList,
                     AllowedAutomaticFunctions = ["localgpt.ascii.surface.get", "localgpt.game.session.get", "localgpt.game.display.get", "localgpt.game.display.palette.get", "localgpt.game.display.text.write", "localgpt.game.display.cell.set", "localgpt.game.display.region.fill", "localgpt.game.display.region.blit", "localgpt.game.frame.submit", "localgpt.game.animation.submit", "localgpt.regex.list", "localgpt.regex.get", "localgpt.regex.test", "localgpt.knowledge.list"],
-                    AssignedModelName = "qwen3.5:4b",
                     ProducesFinalAnswer = true,
                     ProducesAsciiFrame = true,
                     AsciiFrameWidth = 80,

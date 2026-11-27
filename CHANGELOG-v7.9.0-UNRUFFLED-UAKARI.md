@@ -6,4 +6,5 @@
 - Verify model loading and run speech synthesis in a managed Python process. Use the saved model snapshot for offline inference.
 - Seed editable media and speech Council presets with the built-in generators as preferences and discovery for compatible alternatives. The speech preset can recommend setting up Whisper when it fits the request and hardware.
 - Leave model selection open in built-in presets and clear legacy model bindings on untouched default presets. Preserve their token budgets and user-edited settings.
+- Seed the ASCII corridor and Green Dragon workflows with their existing steps and tools and let their roles use the models selected for the run.
 - Handle normal 1-Wire approval worker shutdown and open running Council sessions from the Council editor in a separate Chat tab.
