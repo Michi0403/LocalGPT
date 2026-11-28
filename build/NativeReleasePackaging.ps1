@@ -1540,7 +1540,7 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
 
         # All distribution UI resources are owned by the repository, not generated placeholders.
         $repositoryRoot = Split-Path -Parent $PSScriptRoot
-        $readmeSource = Join-Path $repositoryRoot 'README.md'
+        $readmeSource = Join-Path $PSScriptRoot 'macpkg/README.txt'
         $licenseSource = Join-Path $repositoryRoot 'LICENSE.MD'
         $backgroundSource = if ([string]::IsNullOrWhiteSpace($DmgBackgroundPath)) {
             Join-Path $PSScriptRoot 'assets/LocalGPT-dmg-background.png'
@@ -1551,13 +1551,13 @@ function New-MacPkg([string]$AppPath,[string]$Destination) {
                 throw "Missing or empty macOS Installer resource: $resourceSource"
             }
         }
-        Write-Utf8NoBom (Join-Path $pkgResources 'README.txt') ([IO.File]::ReadAllText($readmeSource))
+        $distributionTitle = "$ProductName $Version"
+        Write-Utf8NoBom (Join-Path $pkgResources 'README.txt') ("$distributionTitle`n`n" + [IO.File]::ReadAllText($readmeSource))
         Write-Utf8NoBom (Join-Path $pkgResources 'LICENSE.txt') ([IO.File]::ReadAllText($licenseSource))
         Copy-Item -LiteralPath $backgroundSource -Destination (Join-Path $pkgResources 'background.png') -Force
         Assert-MacPackageResources -ResourcesDirectory $pkgResources
 
         $componentPackageName = [IO.Path]::GetFileName($componentPackage)
-        $distributionTitle = "$ProductName $Version"
         $escapedDistributionTitle = [Security.SecurityElement]::Escape($distributionTitle)
         $escapedIdentifier = [Security.SecurityElement]::Escape($identifier)
         $escapedComponentPackageName = [Security.SecurityElement]::Escape($componentPackageName)

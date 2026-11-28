@@ -10,13 +10,13 @@ $root = Split-Path -Parent $PSScriptRoot
 $packageSourcePath = Join-Path $PSScriptRoot 'NativeReleasePackaging.ps1'
 if (-not (Test-Path -LiteralPath $packageSourcePath -PathType Leaf)) { throw "Missing native packaging source: $packageSourcePath" }
 $packageSource = [IO.File]::ReadAllText($packageSourcePath)
-foreach ($requiredCall in @('NativeReleaseText.Common.ps1', 'Get-MacPackageScriptText', 'Assert-PortableShellScript', 'Assert-MacPackageResources', "'--resources', `$pkgResources")) {
+foreach ($requiredCall in @('NativeReleaseText.Common.ps1', 'Get-MacPackageScriptText', 'Assert-PortableShellScript', 'Assert-MacPackageResources', 'macpkg/README.txt', "'--resources', `$pkgResources")) {
     if ($packageSource.IndexOf($requiredCall, [StringComparison]::Ordinal) -lt 0) {
         throw "macOS PKG generation lost its verified resource/script contract: '$requiredCall' in $packageSourcePath"
     }
 }
 $templates = Join-Path $PSScriptRoot 'macpkg'
-$readme = Join-Path $root 'README.md'
+$readme = Join-Path $templates 'README.txt'
 $license = Join-Path $root 'LICENSE.MD'
 $background = Join-Path $PSScriptRoot 'assets/LocalGPT-dmg-background.png'
 foreach ($sourceFile in @($readme,$license,$background)) {

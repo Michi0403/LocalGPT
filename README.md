@@ -11,7 +11,7 @@ An open-source, local-first .NET 10 and Blazor platform for AI councils, model o
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
 [![Local first](https://img.shields.io/badge/AI-local--first-2f855a)](#local-first-by-design)
 
-[Latest release](https://github.com/Michi0403/LocalGPT/releases/latest) · [Architecture](docs/architecture/system-overview.md) · [Project stance](docs/reference/design-evolution.md) · [Security](SECURITY.md) · [Release process](docs/engineering/release-and-docs.md)
+[Latest release](https://github.com/Michi0403/LocalGPT/releases/latest) · [Architecture](docs/architecture/system-overview.md) · [Project stance](docs/reference/design-evolution.md) · [Security](SECURITY.md) · [Release process](docs/engineering/release-and-docs.md) · [Release history](maintenance/changelogs/)
 
 </div>
 
@@ -104,8 +104,10 @@ The original screenshot naming, sizing, and privacy plan remains preserved for m
 
 1. Open the [latest GitHub release](https://github.com/Michi0403/LocalGPT/releases/latest).
 2. Download the appropriate installer or packaged application for your platform.
-3. Follow the included release notes and installer guidance.
-4. Connect a supported model runtime such as Ollama and begin with the main Chat or Council Teams pages.
+3. On macOS, open the `.pkg` and follow Installer, or open the DMG and drag LocalGPT to Applications. Launch it from Applications.
+4. Open the in-app Setup page (`/install`) and connect a model provider such as Ollama. Open Chat or choose a team under Council Teams once your models are available.
+
+Use the [release notes](maintenance/changelogs/) to review changes before installing an update.
 
 The installer supports commands such as:
 
@@ -139,7 +141,7 @@ The development and release scripts restore the pinned .NET tools from both the 
 
 #### DevExpress license registration on macOS/Linux
 
-DevExpress 25.2 performs build-time license validation. The exact file/environment-variable casing matters on Unix-like systems. LocalGPT build scripts run a preflight and never print the key value.
+The pinned DevExpress packages perform build-time license validation. The exact file/environment-variable casing matters on Unix-like systems. LocalGPT build scripts run a preflight and never print the key value.
 
 Default license locations:
 
@@ -153,11 +155,11 @@ You can register a downloaded key file into the correct per-user location withou
 pwsh ./build/Register-DevExpressLicense.ps1 -LicenseFile "$HOME/Downloads/DevExpress_License.txt"
 ```
 
-Alternatively use the case-sensitive `DevExpress_LicensePath` (folder) or `DevExpress_License` (key value) environment variable. If DevExpress reports DX1002 after the key is found, update the key so it supports the 25.2 major version, then restart the IDE/terminal and rebuild. Never commit `DevExpress_License.txt` or a license value.
+Alternatively use the case-sensitive `DevExpress_LicensePath` (folder) or `DevExpress_License` (key value) environment variable. If DevExpress reports DX1002 after the key is found, update the key so it supports the DevExpress version pinned in this repo, then restart the IDE/terminal and rebuild. Never commit `DevExpress_License.txt` or a license value.
 
 #### Cross-platform documentation prerequisites
 
-The release and local-development PowerShell entry points now prepare the documentation runtime before the long build starts. LocalGPT accepts an existing Node.js 20-22 installation, but if no compatible runtime is available it downloads a **portable per-user Node.js 22.23.2 runtime** for the current Windows, macOS, or Linux architecture. The download is verified against the official Node.js `SHASUMS256.txt` manifest and is stored outside the repository in the LocalGPT documentation-tool cache; administrator/root installation is not required.
+The release and local-development PowerShell entry points now prepare the documentation runtime before the long build starts. LocalGPT accepts an existing Node.js 20-22 installation, but if no compatible runtime is available it downloads a **pinned portable per-user Node.js runtime** for the current Windows, macOS, or Linux architecture. The download is verified against the official Node.js `SHASUMS256.txt` manifest and is stored outside the repository in the LocalGPT documentation-tool cache; administrator/root installation is not required.
 
 You can run the same preflight explicitly:
 

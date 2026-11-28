@@ -126,10 +126,13 @@ docs/.print-book/
 docs/LocalGPT-*.pdf
 src/LocalGPT/wwwroot/help-docs/
 
-# maintenance/: changelogs are published (maintenance/changelogs, any sub-folders). Validation records,
+# maintenance/: changelogs and archived validation records are tracked. Other validation records,
 # manual-merge patches, guard logs, older review reports and the local README stay in the working copy
 # and in release ZIPs but are not published.
 /maintenance/*
 !/maintenance/changelogs/
+!/maintenance/validation/
+/maintenance/validation/*
+!/maintenance/validation/VALIDATION-*.md
 !/maintenance/ONEWIRE-EDGE-TESTS.md
 src/LocalGPT/Runtime/Python/__pycache__/

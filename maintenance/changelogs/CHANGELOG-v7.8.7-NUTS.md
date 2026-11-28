@@ -9,7 +9,7 @@
 
 - In `/install`, register the Ollama providers you want to compare. On **AI Council**, select the provider and model for each benchmark participant. Select one route when localhost and a LAN address point to the same Ollama instance.
 - Open **NUTS role assessment** in the benchmark panel. Enable the scenario and edit its JSON. A scenario can include up to 256 cases for configured Council roles. The supplied scenario includes C# and PublisherStudio layout and capability-selection checks.
-- To reproduce the four live smoke cases on another machine, paste [`NUTS-SMOKE-SCENARIO.json`](NUTS-SMOKE-SCENARIO.json) into the scenario editor and select the same models if installed. Use this public example to check setup. Use a separate set of held-out cases for adapter qualification.
+- To reproduce the four live smoke cases on another machine, paste [`NUTS-SMOKE-SCENARIO.json`](../../NUTS-SMOKE-SCENARIO.json) into the scenario editor and select the same models if installed. Use this public example to check setup. Use a separate set of held-out cases for adapter qualification.
 - Saved reports show which cases passed, failed, or produced no measurement. A role suggestion requires at least two successful cases with complete coverage. Select the recommended roles and request approval in the Human Collaboration Inbox. Approval adds the provider-qualified models to the preset while retaining its existing models and role policies. For a supplied preset, select the editable copy in Chat.
 
 ## Neural Training and LoRA
