@@ -515,6 +515,7 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                     var recovered = functionCallRecovery.Recover(assistantContent.ToString(), automaticInvocation: true);
                     if (recovered.Recognized)
                     {
+                        pendingContent.Clear();
                         toolCalls = ToOllamaToolCalls(recovered.Calls);
                         assistantContent.Clear();
                         assistantContent.Append(recovered.VisibleContent);
@@ -561,14 +562,13 @@ public sealed partial class OllamaThinkingChatClient : IChatClient
                     if (thinkingRecoveryUpdate is not null)
                         yield return thinkingRecoveryUpdate;
                 }
-                else if (toolCalls.Count == 0 && pendingContent.Length > 0)
-                {
-                    foreach (var text in formatter.AppendContent(pendingContent.ToString()))
-                        yield return CreateStreamingUpdate(text);
-                }
-
                 if (toolCalls.Count == 0)
                 {
+                    if (pendingContent.Length > 0)
+                    {
+                        foreach (var text in formatter.AppendContent(pendingContent.ToString()))
+                            yield return CreateStreamingUpdate(text);
+                    }
                     foreach (var text in formatter.Complete())
                         yield return CreateStreamingUpdate(text);
                     yield break;
