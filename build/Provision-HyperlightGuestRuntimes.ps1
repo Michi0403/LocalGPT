@@ -56,10 +56,6 @@ if ($effectiveTarget -ne $hostRid) {
     return
 }
 $root = [IO.Path]::GetFullPath($OutputDirectory)
-if (Assert-PackageComplete $root) {
-    Write-Host "Hyperlight $version Python, .NET and PowerShell guest images already verified in $root"
-    return
-}
 
 $cacheBase = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'LocalGPT/hyperlight-build-cache' }
     elseif ($env:XDG_CACHE_HOME) { Join-Path $env:XDG_CACHE_HOME 'LocalGPT/hyperlight-build-cache' }
@@ -73,6 +69,14 @@ $cachePath = Join-Path $cacheBase ('images/' + $version + '/' + $effectiveTarget
 $temporary = Join-Path ([IO.Path]::GetTempPath()) ('localgpt-hluk-provision-' + [guid]::NewGuid().ToString('N'))
 $oldCache = [Environment]::GetEnvironmentVariable('HLUK_CACHE_DIR')
 try {
+    if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
+        Import-Module ([IO.Path]::Combine($PSHOME, 'Modules', 'Microsoft.PowerShell.Utility', 'Microsoft.PowerShell.Utility.psd1')) -ErrorAction Stop
+    }
+    if (Assert-PackageComplete $root) {
+        Write-Host "Hyperlight $version Python, .NET and PowerShell guest images already verified in $root"
+        return
+    }
+
     [IO.Directory]::CreateDirectory($toolDir) | Out-Null
     [IO.Directory]::CreateDirectory($downloadDir) | Out-Null
     [IO.Directory]::CreateDirectory($cachePath) | Out-Null
