@@ -21,6 +21,10 @@ function Initialize-BuildConsoleEncoding {
 }
 Initialize-BuildConsoleEncoding
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$buildStorage = if (-not [string]::IsNullOrWhiteSpace($env:FUTURE2_BUILD_STORAGE_ROOT)) {
+    . (Join-Path $root 'build/RepositoryBuildStorage.Common.ps1')
+    Initialize-Future2RepositoryBuildStorage -RepositoryRoot $root
+}
 & (Join-Path $root 'build/Assert-PowerShellCompatibility.ps1')
 & (Join-Path $root 'build/Assert-ProjectVersionResolution.ps1')
 & (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
@@ -30,11 +34,9 @@ Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the o
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
 Write-Host "Clearing repository-local obj restore state before the ordered CLI build..." -ForegroundColor DarkCyan
-Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force |
-    Where-Object { $_.Name -eq "obj" } |
-    Sort-Object FullName -Descending |
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 $solutionRoot = Join-Path $root "src"
+. (Join-Path $root 'build/RepositoryBuildCleanup.Common.ps1')
+$null = Clear-LocalGptProjectBuildState -SourceRoot $solutionRoot -IncludeBin:$Clean -BestEffort
 $wireProject = Join-Path $solutionRoot "LocalGPT.WireProtocolVersion/LocalGPT.WireProtocolVersion.csproj"
 $appProject = Join-Path $solutionRoot "LocalGPT/LocalGPT.csproj"
 $setupProject = Join-Path $solutionRoot "LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj"
@@ -45,7 +47,12 @@ $pagesSnapshotArchive = Join-Path $root ".github/pages/localgpt-kawaii-docs.zip"
 $packageDirectory = Join-Path $root "packages"
 $wireVersion = "2.1.1"
 $wirePackage = Join-Path $packageDirectory "LocalGPT.WireProtocolVersion.$wireVersion.nupkg"
-$packageRestoreCache = Join-Path $root "artifacts/development/.nuget-packages"
+$packageRestoreCache = if ($null -ne $buildStorage) {
+    $buildStorage.NuGetPackages
+}
+else {
+    Join-Path $root 'artifacts/development/.nuget-packages'
+}
 $useProject = if ($UseWireProtocolPackage) { "false" } else { "true" }
 $appOutputRoot = Join-Path (Split-Path -Parent $appProject) "bin/$Configuration/net10.0"
 $documentationRoot = Join-Path $appOutputRoot "wwwroot/help-docs"
@@ -93,13 +100,6 @@ function Assert-LocalGptDocumentation {
 }
 
 $appVersion = & (Join-Path $root 'build/Get-ProjectVersion.ps1') -ProjectPath $appProject
-
-if ($Clean) {
-    Get-ChildItem $solutionRoot -Directory -Recurse -Force |
-        Where-Object { $_.Name -in @("bin", "obj") } |
-        Sort-Object FullName -Descending |
-        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-}
 
 New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
 $wireBuildProperties = @(

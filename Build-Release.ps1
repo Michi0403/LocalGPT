@@ -52,7 +52,14 @@ if (-not (Test-Path -LiteralPath $buildStorageScript -PathType Leaf)) { throw "R
 $buildStorage = Initialize-Future2RepositoryBuildStorage -RepositoryRoot $root -DocumentationCacheRoot $DocumentationCacheRoot
 Write-Host "[Build stage: preflight] LocalGPT: configuration=$Configuration; runtime=$Runtime; compileOnly=$CompileOnly." -ForegroundColor Cyan
 if ($CompileOnly) {
-    & (Join-Path $root 'build/Invoke-ReleaseCompileValidation.ps1') -Solution 'src/LocalGPTWebviewWrapper.sln' -Configuration $Configuration
+    $compileTargets = if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
+        'src/LocalGPTWebviewWrapper.sln'
+    }
+    else {
+        'src/LocalGPT/LocalGPT.csproj'
+        'src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj'
+    }
+    & (Join-Path $root 'build/Invoke-ReleaseCompileValidation.ps1') -Target $compileTargets -Configuration $Configuration
     return
 }
 & (Join-Path $root 'build/Assert-ThirdPartyNotices.ps1') -RepositoryRoot $root
@@ -83,19 +90,10 @@ Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the o
 # compilation or the long documentation render. MSBuild also runs this guard.
 # A Git checkout missing an ignored image must fail here with the exact path.
 & (Join-Path $root 'build/Assert-StaticWebAssets.ps1')
+. (Join-Path $root 'build/RepositoryBuildCleanup.Common.ps1')
 function Clear-RepositoryReleaseBuildState {
     param([switch]$BestEffort)
-    $directories = @(
-        Get-ChildItem (Join-Path $root "src") -Directory -Recurse -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in @("bin", "obj") } |
-            Sort-Object FullName -Descending
-    )
-    foreach ($directory in $directories) {
-        if (-not (Test-Path -LiteralPath $directory.FullName)) { continue }
-        if ($BestEffort) { Remove-Item -LiteralPath $directory.FullName -Recurse -Force -ErrorAction SilentlyContinue }
-        else { Remove-Item -LiteralPath $directory.FullName -Recurse -Force -ErrorAction Stop }
-    }
-    return $directories.Count
+    Clear-LocalGptProjectBuildState -SourceRoot (Join-Path $root 'src') -IncludeBin -BestEffort:$BestEffort
 }
 
 Write-Host "[Build stage: preflight] LocalGPT: release-entrypoint checks complete; MSBuild architecture gates still run during compilation." -ForegroundColor Green

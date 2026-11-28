@@ -50,7 +50,11 @@ function Initialize-Future2RepositoryBuildStorage {
     # consume the internal system volume even though bin/obj/artifacts are external.
     $env:FUTURE2_BUILD_STORAGE_ROOT = $storageRoot
     $env:FUTURE2_DOCUMENTATION_CACHE_ROOT = $documentationRoot
-    $env:DOTNET_CLI_HOME = $dotnetHome
+    # On macOS and Linux NuGet uses DOTNET_CLI_HOME to locate the user's
+    # NuGet.Config. Keep that configuration visible while redirecting caches.
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)) {
+        $env:DOTNET_CLI_HOME = $dotnetHome
+    }
     $env:NUGET_PACKAGES = $nugetPackages
     $env:NUGET_HTTP_CACHE_PATH = $nugetHttpCache
     $env:NUGET_PLUGINS_CACHE_PATH = $nugetPluginCache
