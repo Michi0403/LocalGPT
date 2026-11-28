@@ -2,13 +2,10 @@
 
 The uakari tidied up the toolbox.
 
-- Restore through the configured NuGet feeds on macOS. Development and release builds can use a fresh package cache when an existing cache is damaged.
-- Limit prebuild cleanup to `bin` and `obj` directories belonging to actual projects. Skip linked directories during the sweep.
-- Validate the application and installer on macOS without including the Windows wrapper. Run Windows solution validation serially to prevent shared projects from writing to the same build outputs at once.
-
 ## Since 7.8.2
 
-- Keep new Chat messages and active Council sessions separate. Let Council presets select from the models available on each installation.
-- Register discovered SDKs through `/install` and show progress for local model setup. Deliver PublisherStudio artifacts back to the originating Chat through approved 1-Wire operations.
-- Seed 71 NUTS benchmark cases across 33 default Council teams. Review suggested role assignments through approvals and keep the current team members when adding a model.
-- Configure LoRA backends, package profiles, and worker settings in `/install`. Check that a trained adapter reloads before it is eligible for a separate benchmark and Council role approval.
+- **Chat and Council.** A message in a new Chat starts its own session. Default Council presets resolve roles from the models discovered on each installation. The compiler Council uses the selected .NET toolchain to generate `.slnx` solution files.
+- **Setup.** Saving toolchains in `/install` registers discovered SDKs and reports upgrades. Hugging Face model downloads show progress during setup.
+- **PublisherStudio.** Approved 1-Wire work returns files, including PDFs, to the originating Chat. Chat shows previews for supported media and reports when PublisherStudio completes a request without returning a file.
+- **NUTS and LoRA.** NUTS ships 71 benchmark scenarios across 33 default Council teams. Applying a measured role recommendation requires approval and preserves existing team members. `/install` exposes LoRA backends, package profiles, and worker settings. A trained adapter must reload before separate benchmarking and Council role approval.
+- **Build and installer.** macOS restore uses the configured NuGet feeds, and builds can use a fresh cache when the existing cache is damaged. Cleanup targets project `bin` and `obj` directories and skips linked directories. Build entry points restore pinned .NET tools before compilation and accept an explicit workload refresh. macOS validation covers the application and installer, and Windows solution validation runs serially to keep shared build outputs consistent.
