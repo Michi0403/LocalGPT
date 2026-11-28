@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory)][Alias('Solution')][string[]]$Target,
-    [ValidateSet('Release', 'Debug')][string]$Configuration = 'Release'
+    [ValidateSet('Release', 'Debug')][string]$Configuration = 'Release',
+    [ValidateSet('None', 'Update', 'UpdateWithSudo')][string]$DotNetWorkloads = 'None'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,6 +36,7 @@ $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = 'false'
 & (Join-Path $PSScriptRoot 'Assert-CouncilRepositorySandboxAndTrafficFiles.ps1')
 & (Join-Path $PSScriptRoot 'Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $PSScriptRoot 'Assert-JavaScriptDiagnostics.ps1')
+& (Join-Path $repositoryRoot 'build/Initialize-DotNetBuildTools.ps1') -ToolManifest @('.config/dotnet-tools.json', 'src/LocalGPT/dotnet-tools.json') -DotNetWorkloads $DotNetWorkloads
 
 # Keep the normal build targets and stop before platform packaging, setup or launch.
 # The wrapper solution also references shared projects with different global

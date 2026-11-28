@@ -26,7 +26,8 @@ param(
     [switch]$KeepWslBuildTree,
     [switch]$WslChildBuild,
     [switch]$SkipReleaseBundle,
-    [string]$PreparedDocumentationRoot = ""
+    [string]$PreparedDocumentationRoot = "",
+    [ValidateSet('None', 'Update', 'UpdateWithSudo')][string]$DotNetWorkloads = 'None'
 )
 
 $ErrorActionPreference = "Stop"
@@ -59,7 +60,7 @@ if ($CompileOnly) {
         'src/LocalGPT/LocalGPT.csproj'
         'src/LocalGPTInstallerConsole/LocalGPTInstallerConsole.csproj'
     }
-    & (Join-Path $root 'build/Invoke-ReleaseCompileValidation.ps1') -Target $compileTargets -Configuration $Configuration
+    & (Join-Path $root 'build/Invoke-ReleaseCompileValidation.ps1') -Target $compileTargets -Configuration $Configuration -DotNetWorkloads $DotNetWorkloads
     return
 }
 & (Join-Path $root 'build/Assert-ThirdPartyNotices.ps1') -RepositoryRoot $root
@@ -79,6 +80,7 @@ if (-not (Test-Path -LiteralPath $wslCommonScript -PathType Leaf)) { throw "WSL 
 & (Join-Path $root 'build/Assert-InteractiveFormsAndPairing.ps1')
 & (Join-Path $root 'build/Assert-RazorFormEncapsulation.ps1')
 & (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense -SkipDocumentationNodeProvisioning:($WslChildBuild -and -not [string]::IsNullOrWhiteSpace($PreparedDocumentationRoot))
+& (Join-Path $root 'build/Initialize-DotNetBuildTools.ps1') -ToolManifest @('.config/dotnet-tools.json', 'src/LocalGPT/dotnet-tools.json') -DotNetWorkloads $DotNetWorkloads
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')

@@ -133,6 +133,8 @@ The PowerShell build entry points are intended to run from Windows PowerShell 5.
 pwsh ./Build-LocalDevelopment.ps1 -Configuration Debug -Platform arm64
 ```
 
+The development and release scripts restore the pinned .NET tools from both the root and application manifests before compilation. To refresh the workloads for the active SDK as part of a build, pass `-DotNetWorkloads Update`. If your SDK installation requires administrator access on macOS or Linux, use `-DotNetWorkloads UpdateWithSudo`. Only the workload update runs through `sudo`.
+
 `NuGet.Config` no longer requires a repository-local `./packages` folder for ordinary source builds. The release scripts inject that source explicitly only when they intentionally consume the locally packed wire-protocol package.
 
 #### DevExpress license registration on macOS/Linux

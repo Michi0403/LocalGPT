@@ -5,7 +5,8 @@ param(
     [string]$Platform = "x64",
     [switch]$UseWireProtocolPackage,
     [switch]$Clean,
-    [switch]$AllowMissingDevExpressLicense
+    [switch]$AllowMissingDevExpressLicense,
+    [ValidateSet('None', 'Update', 'UpdateWithSudo')][string]$DotNetWorkloads = 'None'
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,6 +31,7 @@ $buildStorage = if (-not [string]::IsNullOrWhiteSpace($env:FUTURE2_BUILD_STORAGE
 & (Join-Path $root 'build/Assert-CrossPlatformBoundaries.ps1')
 & (Join-Path $root 'build/Assert-SessionSandboxIsolation.ps1')
 & (Join-Path $root 'build/Initialize-BuildPrerequisites.ps1') -AllowMissingDevExpressLicense:$AllowMissingDevExpressLicense
+& (Join-Path $root 'build/Initialize-DotNetBuildTools.ps1') -ToolManifest @('.config/dotnet-tools.json', 'src/LocalGPT/dotnet-tools.json') -DotNetWorkloads $DotNetWorkloads
 Write-Host "Refreshing reviewed LocalGPT frontend SHA-256 inventory before the ordered CLI build..." -ForegroundColor DarkCyan
 & (Join-Path $root 'build/Update-JavaScriptDiagnosticsManifest.ps1')
 & (Join-Path $root 'build/Assert-JavaScriptDiagnostics.ps1')
