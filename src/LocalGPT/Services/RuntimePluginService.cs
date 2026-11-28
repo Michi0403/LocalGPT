@@ -13,14 +13,14 @@ namespace LocalGPT.Services;
 /// <param name="databaseInitializer">Database initialization dependency.</param>
 /// <param name="executionHost">Runtime host that materializes and invokes explicitly loaded executable payloads.</param>
 /// <param name="definitionSupport">Validation and persistence-copy helpers for runtime extension definitions.</param>
-/// <param name="localAiRuntime">The owner of the installed local model inventory.</param>
+/// <param name="scopeFactory">Creates a scope for installed local model inventory lookups.</param>
 /// <param name="logger">Logger used for bounded operational diagnostics.</param>
 public sealed class RuntimePluginService(
     IDbContextFactory<LocalGptMemoryDbContext> dbContextFactory,
     IDatabaseInitializationService databaseInitializer,
     RuntimePluginExecutionHost executionHost,
     RuntimePluginDefinitionSupport definitionSupport,
-    ILocalAiRuntimeService localAiRuntime,
+    IServiceScopeFactory scopeFactory,
     ILogger<RuntimePluginService> logger) : IRuntimePluginService
 {
     /// <summary>
@@ -99,7 +99,7 @@ public sealed class RuntimePluginService(
             var source = request.Plugin ?? throw new ArgumentException("Plugin definition is required.", nameof(request));
             definitionSupport.NormalizeAndValidate(source);
             if (definitionSupport.ReadModelInstallationId(source.ParameterSchemaJson) is { } installationId &&
-                !localAiRuntime.GetInstalledModels().Any(model => model.InstallationId == installationId))
+                FindInstalledModel(installationId) is null)
                 throw new ArgumentException("The selected model is missing. Install its snapshot in /install and select its current installation ID.");
             await databaseInitializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
             await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -282,7 +282,7 @@ public sealed class RuntimePluginService(
                 if (!string.Equals(definition.ParameterSchemaJson, approvedParameterSchema, StringComparison.Ordinal))
                     return Failure(functionName, request, "ModelBindingChanged", "The runtime extension's model selection changed. Review and approve a new call.");
 
-                var model = localAiRuntime.GetInstalledModels().FirstOrDefault(item => item.InstallationId == installationId);
+                var model = installationId is not null ? FindInstalledModel(installationId) : null;
                 if (model is null || !Directory.Exists(model.LocalPath))
                     return Failure(functionName, request, "ModelMissing", "The runtime extension's model files are missing. Restore or reselect the model in /install.");
 
@@ -326,6 +326,13 @@ public sealed class RuntimePluginService(
             logger.LogError(exception, "Runtime extension function {FunctionName} failed; executable content and parameters omitted from logs.", functionName);
             return Failure(functionName, request, "ExecutionFailed", definitionSupport.Bound(exception.Message, 4000));
         }
+    }
+
+    private LocalAiModelInstallation? FindInstalledModel(string installationId)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var runtime = scope.ServiceProvider.GetRequiredService<ILocalAiRuntimeService>();
+        return runtime.GetInstalledModels().FirstOrDefault(model => model.InstallationId == installationId);
     }
 
     /// <summary>
