@@ -137,6 +137,8 @@ pwsh ./Build-LocalDevelopment.ps1 -Configuration Debug -Platform arm64
 
 The development and release scripts restore the pinned .NET tools from both the root and application manifests before compilation. To refresh the workloads for the active SDK as part of a build, pass `-DotNetWorkloads Update`. If your SDK installation requires administrator access on macOS or Linux, use `-DotNetWorkloads UpdateWithSudo`. Only the workload update runs through `sudo`.
 
+After builds finish, run `pwsh ./Clean-Build.ps1 -WhatIf` to preview removal of generated docs, checkout-local caches, and project `bin`/`obj` folders. Run it without `-WhatIf` to clean. The script preserves packaged releases, package feeds, and published documentation snapshots. Pass `-ReleaseOutputRoot` with any custom release output path inside a cleanup folder.
+
 `NuGet.Config` no longer requires a repository-local `./packages` folder for ordinary source builds. The release scripts inject that source explicitly only when they intentionally consume the locally packed wire-protocol package.
 
 #### DevExpress license registration on macOS/Linux
